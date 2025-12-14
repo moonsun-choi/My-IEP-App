@@ -26,14 +26,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         if (!isGoogleScriptReady) setIsScriptSlow(true);
     }, 15000); // Increased to 15 seconds
 
-    googleDriveService.init(() => {
-        // Callback when ready
-        setIsGoogleScriptReady(true);
-        setIsScriptSlow(false);
-        console.log("Google Service Initialized");
-    }).catch(err => {
-        console.log("Initial Google service load failed (will retry on user interaction):", err);
-    });
+    const initDrive = async () => {
+        try {
+            await googleDriveService.init(() => {
+                setIsGoogleScriptReady(true);
+                setIsScriptSlow(false);
+                console.log("Google Service Initialized");
+            });
+        } catch (err) {
+            console.log("Initial Google service load failed (will retry on user interaction):", err);
+            // Don't show toast on initial load, just let the button state reflect it
+        }
+    };
+    initDrive();
 
     // 2. Setup Online/Offline listeners
     const handleOnline = () => setOnlineStatus(true);
@@ -57,7 +62,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         if (syncStatus === 'syncing') {
             e.preventDefault();
-            // Standard message for legacy browsers (modern browsers ignore the message but show a generic prompt)
             e.returnValue = '데이터 동기화 중입니다. 앱을 종료하면 변경사항이 저장되지 않을 수 있습니다.';
         }
     };
@@ -66,45 +70,58 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [syncStatus]);
 
-  // Close sidebar automatically when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location]);
 
   const handleGoogleLogin = async () => {
-      // Allow retry if script is slow/failed initially
+      // 0. Pre-check network
+      if (!navigator.onLine) {
+          toast.error("인터넷 연결을 확인해주세요.", { id: 'offline-error', duration: 2000 });
+          return;
+      }
+
+      // 1. Retry Script Init if needed
       if (!isGoogleScriptReady) {
-          const loadingToast = toast.loading("Google 서비스 연결 재시도 중...");
+          const loadingId = toast.loading("Google 서비스 연결 재시도 중...", { id: 'retry-loading' });
+          
           try {
             await googleDriveService.init(() => {
                 setIsGoogleScriptReady(true);
                 setIsScriptSlow(false);
             });
-            toast.dismiss(loadingToast);
+            toast.dismiss(loadingId);
+            // Proceed to login below...
           } catch (e) {
-            toast.dismiss(loadingToast);
-            toast.error("네트워크 연결을 확인해주세요.");
+            toast.dismiss(loadingId);
+            toast.error("연결에 실패했습니다. 네트워크를 확인해주세요.", { 
+                id: 'retry-error', 
+                duration: 3000 // Auto dismiss after 3s
+            });
             return;
           }
       }
 
+      // 2. Perform Login
       try {
+          // Clear any previous toasts
+          toast.dismiss();
           await googleDriveService.login();
           setLoggedIn(true);
-          toast.success("Google 로그인 성공");
+          toast.success("Google 로그인 성공", { duration: 3000 });
       } catch (e: any) {
           console.error("Login Failed:", e);
           
           if (e.message === "Configuration missing") {
-              toast.error("Google API 설정이 누락되었습니다");
+              toast.error("Google API 설정이 누락되었습니다", { duration: 3000 });
           } else if (e.message?.includes("not initialized") || e.message?.includes("로딩 중")) {
-              toast.error("서비스 재연결 중입니다. 잠시 후 다시 시도해주세요.");
-              // Trigger re-init attempt behind scenes if possible
+              // Should not happen often due to step 1, but just in case
+              toast.error("서비스 준비 중입니다. 잠시 후 다시 시도해주세요.", { duration: 3000 });
               googleDriveService.init().catch(() => {});
           } else if (e.type === 'popup_blocked_by_browser') {
-              toast.error("브라우저 팝업이 차단되었습니다");
+              toast.error("브라우저 팝업이 차단되었습니다", { duration: 3000 });
           } else {
-              toast.error("로그인 중 오류가 발생했습니다");
+              toast.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.", { duration: 3000 });
           }
       }
   };
@@ -133,7 +150,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           );
       }
 
-      // Check Configuration Status
       if (!googleDriveService.isConfigured()) {
           return (
               <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
@@ -142,11 +158,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       <span className="text-xs font-bold">설정 필요</span>
                   </div>
                   <p className="text-[10px] text-amber-600/80 leading-tight mb-2">
-                      Google Drive 동기화를 위해 API 키 설정이 필요합니다.
+                      API 키 설정이 필요합니다.
                   </p>
                   <button 
-                    onClick={() => toast.error("VITE_GOOGLE_CLIENT_ID 및 API_KEY 환경변수가 설정되지 않았습니다.")}
-                    className="w-full bg-white text-amber-600 py-2 rounded-lg text-xs font-bold border border-amber-200 hover:bg-amber-50 transition-colors"
+                    onClick={() => toast.error("VITE_GOOGLE_CLIENT_ID 설정을 확인하세요", { duration: 3000 })}
+                    className="w-full bg-white text-amber-600 py-2 rounded-lg text-xs font-bold border border-amber-200"
                   >
                       설정 확인
                   </button>
@@ -163,12 +179,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 {isGoogleScriptReady ? (
                     <>
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
-                        Google 로그인 및 동기화
+                        Google 로그인
                     </>
                 ) : isScriptSlow ? (
                     <>
                         <RefreshCw size={16} className="text-amber-500" />
-                        연결 지연 (터치하여 재시도)
+                        연결 재시도 (터치)
                     </>
                 ) : (
                     <>
@@ -201,13 +217,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     className="w-full bg-orange-100 hover:bg-orange-200 text-orange-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
                 >
                     <Download size={14} />
-                    데이터 내려받기 (복원)
+                    복원하기
                 </button>
             </div>
           );
       }
       
-      // Default: Logged in and Idle/Saved
       return (
           <div className="space-y-3">
               <div className="flex items-center justify-between text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
@@ -250,7 +265,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        {/* Brand Header */}
         <div className="px-6 py-8 flex items-center justify-between shrink-0">
           <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 group-hover:scale-105 transition-transform">
@@ -266,7 +280,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-4 py-2 overflow-y-auto custom-scrollbar space-y-1">
           <div className="px-2 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Menu</div>
           {menuItems.map((item) => {
@@ -299,7 +312,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           })}
         </nav>
 
-        {/* Footer / Cloud Sync Status */}
         <div className="p-4 mt-auto">
             <div className="rounded-2xl border border-gray-100 p-4 bg-gray-50/50">
                 <div className="mb-3">
@@ -308,15 +320,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </div>
             </div>
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.1.0 (Auto-Sync)</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.1 (Auto-Sync)</p>
             </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full relative md:ml-[280px] transition-all duration-300">
-        
-        {/* Top Header */}
         <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200/60 pt-[env(safe-area-inset-top)] transition-all">
           <div className="h-[68px] flex items-center justify-between px-4 md:px-8">
             <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -326,8 +335,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 >
                 <Menu size={24} />
                 </button>
-                
-                {/* Breadcrumb-like Title */}
                 <div className="flex flex-col min-w-0 pr-4">
                     <h1 className="text-lg md:text-xl font-extrabold text-gray-800 tracking-tight leading-tight truncate">
                         {getPageTitle()}
@@ -337,8 +344,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </span>
                 </div>
             </div>
-            
-            {/* Header Status Icon (Mobile/Desktop) */}
             <div className="flex items-center gap-2">
                  {!isOnline && <CloudOff size={20} className="text-gray-300" />}
                  {isOnline && isLoggedIn && syncStatus === 'saved' && <CheckSquare size={20} className="text-green-500" />}
@@ -347,7 +352,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-0 scroll-smooth bg-slate-50/50">
           {children}
         </main>

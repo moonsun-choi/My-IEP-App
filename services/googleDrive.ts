@@ -92,7 +92,7 @@ export const googleDriveService = {
     }
 
     // 3. Init GAPI
-    const gapiLoaded = new Promise<void>((resolve) => {
+    const gapiLoaded = new Promise<void>((resolve, reject) => {
       window.gapi.load('client', async () => {
         try {
             if (googleDriveService.isConfigured()) {
@@ -105,8 +105,9 @@ export const googleDriveService = {
             resolve();
         } catch(e) {
             console.error("GAPI Init Error", e);
-            gapiInited = true; // Mark as attempted to prevent blocking UI
-            resolve();
+            // CRITICAL CHANGE: Do NOT set gapiInited = true here.
+            // Rejecting allows the UI to catch the error and lets the user retry later.
+            reject(e);
         }
       });
     });
