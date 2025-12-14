@@ -15,6 +15,7 @@ declare global {
 
 // Access environment variables in Vite safely
 const env = (import.meta as any).env || {};
+// IMPORTANT: For Native/Capacitor, this MUST be the WEB CLIENT ID, not the Android Client ID.
 const CLIENT_ID = env.VITE_GOOGLE_CLIENT_ID || '';
 const API_KEY = env.VITE_GOOGLE_API_KEY || '';
 
@@ -77,12 +78,27 @@ export const googleDriveService = {
 
     // --- NATIVE PLATFORM INITIALIZATION ---
     if (Capacitor.isNativePlatform()) {
+        // 1. Initialize Plugin IMMEDIATELY (Before network calls)
+        // This ensures GoogleAuth is ready even if GAPI fails to load due to network.
         try {
-            // 1. Load GAPI (Still needed for Drive API calls like list/create)
+            console.log("Initializing Native Google Auth...");
+            GoogleAuth.initialize({
+                clientId: CLIENT_ID, // Use WEB Client ID here
+                scopes: ['https://www.googleapis.com/auth/drive.file'],
+                grantOfflineAccess: false, // False ensures we get a direct accessToken for GAPI
+            });
+        } catch (e) {
+            console.error("GoogleAuth.initialize failed:", e);
+            // We continue, as it might be configured via capacitor.config.json
+        }
+
+        try {
+            // 2. Load GAPI (Needed for Drive API calls)
+            // We treat this separately so auth init doesn't fail if network is flaky
             await loadScript('https://apis.google.com/js/api.js');
             await new Promise<void>((resolve) => window.gapi.load('client', resolve));
             
-            // 2. Init GAPI Client (API Key only, Auth comes from plugin later)
+            // 3. Init GAPI Client (API Key only)
             if (googleDriveService.isConfigured()) {
                 await window.gapi.client.init({
                     apiKey: API_KEY,
@@ -90,21 +106,13 @@ export const googleDriveService = {
                 });
             }
 
-            // 3. Init Native Plugin
-            // Note: clientId here is mainly for Web fallback of the plugin, 
-            // Android/iOS read from capacitor.config.json usually, but passing it is safe.
-            GoogleAuth.initialize({
-                clientId: CLIENT_ID,
-                scopes: ['https://www.googleapis.com/auth/drive.file'],
-                grantOfflineAccess: true,
-            });
-
             gapiInited = true;
             if (onInitCallback) onInitCallback();
             return;
 
         } catch (e) {
-            console.error("Native Init Error:", e);
+            console.error("Native GAPI Init Error (Check Network):", e);
+            // Propagate error so UI knows we are not fully ready (e.g. offline)
             throw e;
         }
     }
@@ -178,20 +186,36 @@ export const googleDriveService = {
     // --- NATIVE LOGIN ---
     if (Capacitor.isNativePlatform()) {
         try {
+            // Force initialization again just in case (safe to call multiple times)
+             GoogleAuth.initialize({
+                clientId: CLIENT_ID,
+                scopes: ['https://www.googleapis.com/auth/drive.file'],
+                grantOfflineAccess: false,
+            });
+
             const user = await GoogleAuth.signIn();
+            console.log("Native Sign In Success", user);
             
-            // The plugin returns an authentication object
-            // For Drive API to work, we must manually set the access token into GAPI
             const accessToken = user.authentication.accessToken;
+            if (!accessToken) throw new Error("No Access Token received from Native Login");
             
-            if (!accessToken) throw new Error("Native login failed to retrieve Access Token");
+            // Bridge: Inject token into GAPI
+            // Ensure GAPI is loaded before setting token
+            if (!window.gapi || !window.gapi.client) {
+                // Try to load GAPI if it was missed (e.g. offline init)
+                await loadScript('https://apis.google.com/js/api.js');
+                await new Promise<void>((resolve) => window.gapi.load('client', resolve));
+            }
             
-            // Bridge Native Auth -> GAPI Client
             window.gapi.client.setToken({ access_token: accessToken });
-            
             return accessToken;
+
         } catch (e: any) {
             console.error("Native Login Error:", e);
+            // '10' is a common error for SHA-1 mismatch or config issues
+            if (JSON.stringify(e).includes("10")) {
+                throw new Error("Google Cloud 설정(SHA-1) 또는 Client ID를 확인해주세요. (Error 10)");
+            }
             throw new Error(e.message || "Native Login Failed");
         }
     }
