@@ -1,16 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, Calendar, HelpCircle, Hand, Mic, Eye, User, X, Camera, MessageSquare, Video, Loader2 } from 'lucide-react';
-import { PromptLevel, MeasurementType } from '../types';
+import { PromptLevel } from '../types';
 import { useStore } from '../store/useStore';
 
 interface QuickRecordSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (type: MeasurementType, value: number, promptLevel: PromptLevel, timestamp?: number, mediaUri?: string | File, notes?: string) => void;
+  // Updated signature: removed MeasurementType
+  onSave: (value: number, promptLevel: PromptLevel, timestamp?: number, mediaUri?: string | File, notes?: string) => void;
   onDelete?: () => void;
   goalTitle: string;
-  initialType?: MeasurementType;
   initialValue?: number;
   initialPromptLevel?: PromptLevel;
   initialTimestamp?: number;
@@ -117,7 +117,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     // Pass the File object if a new file was selected, otherwise pass the existing URI string
     const mediaToSave = mediaFile ? mediaFile : mediaPreview;
 
-    onSave('accuracy', accuracy, promptLevel, timestamp, mediaToSave, notes);
+    onSave(accuracy, promptLevel, timestamp, mediaToSave, notes);
     onClose();
   };
 
@@ -152,18 +152,34 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
         onClick={onClose}
       />
       
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl p-6 shadow-2xl animate-slide-up max-w-md mx-auto max-h-[90vh] overflow-y-auto">
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 opacity-50" />
+      <div className={`
+        fixed z-50 bg-white p-6 shadow-2xl overflow-y-auto
+        
+        // Mobile Layout (Bottom Sheet)
+        bottom-0 left-0 right-0 mx-auto max-w-md rounded-t-3xl max-h-[90vh] animate-slide-up
+        
+        // Desktop/Tablet Layout (Centered Modal)
+        md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 
+        md:w-full md:max-w-lg md:rounded-3xl md:max-h-[85vh] md:animate-scale-up
+      `}>
+        {/* Drag Handle (Mobile Only) */}
+        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 opacity-50 md:hidden" />
 
         <div className="flex justify-between items-start mb-4">
             <h3 className="text-lg font-bold text-gray-800 truncate flex-1 pr-4 leading-tight">
             {goalTitle}
             </h3>
-            {isEditing && onDelete && (
-                <button onClick={onDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100 transition-colors">
-                    <Trash2 size={20} />
+            <div className="flex gap-2">
+                {isEditing && onDelete && (
+                    <button onClick={onDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100 transition-colors">
+                        <Trash2 size={20} />
+                    </button>
+                )}
+                {/* Close Button (More visible on Desktop) */}
+                <button onClick={onClose} className="p-2 text-gray-400 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors hidden md:block">
+                    <X size={20} />
                 </button>
-            )}
+            </div>
         </div>
         
         {/* Date Time Edit */}

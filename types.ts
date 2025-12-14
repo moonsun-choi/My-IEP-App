@@ -18,7 +18,8 @@ export interface Goal {
 
 export type PromptLevel = 'independent' | 'verbal' | 'gesture' | 'modeling' | 'physical';
 
-export type MeasurementType = 'accuracy' | 'duration' | 'frequency';
+// 변경: 정확도(accuracy)만 사용하도록 고정
+export type MeasurementType = 'accuracy';
 
 export interface ObservationLog {
   id: string;
@@ -26,14 +27,14 @@ export interface ObservationLog {
   
   // Data Fields
   measurementType: MeasurementType;
-  value: number; // stores accuracy(%), duration(seconds), or count(number)
+  value: number; // stores accuracy(%) only
   
   promptLevel: PromptLevel;
   timestamp: number;
   notes?: string;
   media_uri?: string;
 
-  // Deprecated/Legacy compatibility
+  // Deprecated fields kept optional for legacy data compatibility during runtime
   accuracy?: number; 
   type?: string;
 }
@@ -84,12 +85,12 @@ export interface AppState {
   updateGoal: (goalId: string, title: string, description?: string, icon?: string, status?: GoalStatus) => Promise<void>;
   deleteGoal: (goalId: string, studentId: string) => Promise<void>;
   
-  // Updated Tracking Actions
-  recordTrial: (goalId: string, type: MeasurementType, value: number, promptLevel: PromptLevel, mediaUri?: string, notes?: string) => Promise<void>;
+  // Updated Tracking Actions - Removed 'type' parameter
+  recordTrial: (goalId: string, value: number, promptLevel: PromptLevel, mediaUri?: string | File, notes?: string) => Promise<void>;
   fetchLogs: (goalId: string) => Promise<void>;
   fetchStudentLogs: (studentId: string) => Promise<void>;
   deleteLog: (logId: string, goalId: string) => Promise<void>;
-  updateLog: (logId: string, goalId: string, type: MeasurementType, value: number, promptLevel: PromptLevel, timestamp: number, mediaUri?: string, notes?: string) => Promise<void>;
+  updateLog: (logId: string, goalId: string, value: number, promptLevel: PromptLevel, timestamp: number, mediaUri?: string | File, notes?: string) => Promise<void>;
   
   // Assessment & Materials
   fetchAssessments: () => Promise<void>;

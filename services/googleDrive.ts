@@ -105,14 +105,32 @@ export const googleDriveService = {
       };
 
       // Request token.
-      // Using 'select_account' or empty prompt is better for mobile UX than forcing consent every time.
-      // This reduces the chance of the popup being blocked or dismissed unexpectedly.
       try {
           tokenClient.requestAccessToken({ prompt: '' });
       } catch (e) {
           reject(e);
       }
     });
+  },
+
+  // Check if backup file exists and return its metadata
+  getBackupMetadata: async (): Promise<{ id: string, modifiedTime: string } | null> => {
+      if (!googleDriveService.isConfigured()) return null;
+      try {
+          const q = `name = '${BACKUP_FILE_NAME}' and trashed = false`;
+          const response = await window.gapi.client.drive.files.list({ 
+              q, 
+              fields: 'files(id, modifiedTime)' 
+          });
+          const files = response.result.files;
+          if (files && files.length > 0) {
+              return { id: files[0].id, modifiedTime: files[0].modifiedTime };
+          }
+          return null;
+      } catch (e) {
+          console.error("Error fetching metadata", e);
+          return null;
+      }
   },
 
   // Backup Data (Create or Update file)

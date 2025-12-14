@@ -1,10 +1,11 @@
 
 import { Student, Goal, ObservationLog, Assessment, Material, PromptLevel, WidgetType, MeasurementType, GoalStatus } from '../types';
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
-const DELAY = 200;
+const DELAY = 100; // Reduced delay as IDB is async but fast
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Polyfill for UUID generation in non-secure contexts (like HTTP on mobile)
+// Polyfill for UUID generation
 function generateUUID() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -15,40 +16,131 @@ function generateUUID() {
   });
 }
 
+// Define the DB Schema
+interface IEPDB extends DBSchema {
+  logs: {
+    key: string;
+    value: ObservationLog;
+    indexes: { 'by-goal': string; 'by-timestamp': number };
+  };
+  keyval: {
+    key: string;
+    value: any;
+  };
+}
+
+const DB_NAME = 'my-iep-db';
+const DB_VERSION = 1;
+
 class DatabaseService {
-  private get<T>(key: string): T[] {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
+  private dbPromise: Promise<IDBPDatabase<IEPDB>>;
+
+  constructor() {
+    this.dbPromise = this.init();
   }
 
-  private set<T>(key: string, data: T[]): void {
-    localStorage.setItem(key, JSON.stringify(data));
+  private async init() {
+    const db = await openDB<IEPDB>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        // 1. Logs Store (Individual records for scalability)
+        const logStore = db.createObjectStore('logs', { keyPath: 'id' });
+        logStore.createIndex('by-goal', 'goal_id');
+        logStore.createIndex('by-timestamp', 'timestamp');
+
+        // 2. Key-Value Store (For Arrays like Students, Goals where order matters)
+        db.createObjectStore('keyval');
+      },
+    });
+
+    await this.migrateFromLocalStorage(db);
+    return db;
+  }
+
+  // Migrate legacy localStorage data to IndexedDB
+  private async migrateFromLocalStorage(db: IDBPDatabase<IEPDB>) {
+    if (localStorage.getItem('iep_db_migrated')) return;
+
+    console.log("Migrating data from localStorage to IndexedDB...");
+    
+    // Migrate Logs
+    const oldLogs = localStorage.getItem('iep_logs');
+    if (oldLogs) {
+      try {
+        const logs: ObservationLog[] = JSON.parse(oldLogs);
+        const tx = db.transaction('logs', 'readwrite');
+        for (const log of logs) {
+             // Fix legacy data
+             if (!log.measurementType) log.measurementType = 'accuracy';
+             if (log.value === undefined && log.accuracy !== undefined) log.value = log.accuracy;
+             await tx.store.put(log);
+        }
+        await tx.done;
+      } catch (e) {
+        console.error("Log migration failed", e);
+      }
+    }
+
+    // Migrate Key-Value Arrays
+    const keys = [
+        { local: 'iep_students', db: 'students' },
+        { local: 'iep_goals', db: 'goals' },
+        { local: 'iep_assessments', db: 'assessments' },
+        { local: 'iep_widgets', db: 'widgets' }
+    ];
+
+    const tx = db.transaction('keyval', 'readwrite');
+    for (const k of keys) {
+      const val = localStorage.getItem(k.local);
+      if (val) {
+        try {
+            await tx.store.put(JSON.parse(val), k.db);
+        } catch (e) {
+            console.error(`Migration for ${k.local} failed`, e);
+        }
+      }
+    }
+    await tx.done;
+
+    // Mark as migrated and clean up large logs to free localStorage quota immediately
+    localStorage.setItem('iep_db_migrated', 'true');
+    localStorage.removeItem('iep_logs'); 
+  }
+
+  // --- Helpers for KeyVal Store ---
+  private async getKeyVal<T>(key: string, defaultValue: T): Promise<T> {
+    const db = await this.dbPromise;
+    const val = await db.get('keyval', key);
+    return (val as T) || defaultValue;
+  }
+
+  private async setKeyVal(key: string, value: any) {
+    const db = await this.dbPromise;
+    await db.put('keyval', value, key);
   }
 
   // --- Widgets Settings ---
   async getWidgets(): Promise<WidgetType[]> {
-    await delay(100);
-    const data = localStorage.getItem('iep_widgets');
-    if (!data) {
-        // Default widgets
-        const defaults: WidgetType[] = ['tracker', 'students'];
-        this.set('iep_widgets', defaults);
-        return defaults;
-    }
-    return JSON.parse(data);
+    return this.getKeyVal<WidgetType[]>('widgets', ['tracker', 'students']);
   }
 
   async setWidgets(widgets: WidgetType[]): Promise<void> {
-    await delay(100);
-    this.set('iep_widgets', widgets);
+    await this.setKeyVal('widgets', widgets);
+  }
+
+  // --- Sync Metadata ---
+  async setLastSyncTime(timestamp: number): Promise<void> {
+    await this.setKeyVal('last_sync_time', timestamp);
+  }
+
+  async getLastSyncTime(): Promise<number> {
+    return this.getKeyVal<number>('last_sync_time', 0);
   }
 
   // --- Students ---
   async getStudents(): Promise<Student[]> {
-    await delay(DELAY);
-    const students = this.get<Student>('iep_students');
+    // Seed data if empty
+    const students = await this.getKeyVal<Student[]>('students', []);
     if (students.length === 0) {
-      // Seed initial data
       const initial: Student[] = [
         { 
           id: '1', 
@@ -61,106 +153,67 @@ class DatabaseService {
           photo_uri: `https://ui-avatars.com/api/?name=${encodeURIComponent('이영희')}&background=E0F2FE&color=0369A1` 
         },
       ];
-      this.set('iep_students', initial);
+      await this.setKeyVal('students', initial);
       return initial;
     }
     return students;
   }
 
   async addStudent(name: string): Promise<Student> {
-    await delay(DELAY);
-    const students = this.get<Student>('iep_students');
+    const students = await this.getStudents();
     const newStudent: Student = {
       id: generateUUID(),
       name,
       photo_uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
     };
-    this.set('iep_students', [...students, newStudent]);
+    await this.setKeyVal('students', [...students, newStudent]);
     return newStudent;
   }
 
   async updateStudent(id: string, name: string, photo_uri?: string): Promise<void> {
-    await delay(DELAY);
-    const students = this.get<Student>('iep_students');
+    const students = await this.getStudents();
     const updated = students.map(s => s.id === id ? { 
         ...s, 
         name, 
         photo_uri: photo_uri || s.photo_uri || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random` 
     } : s);
-    this.set('iep_students', updated);
+    await this.setKeyVal('students', updated);
   }
 
   async deleteStudent(id: string): Promise<void> {
-    await delay(DELAY);
-    const students = this.get<Student>('iep_students');
-    this.set('iep_students', students.filter(s => s.id !== id));
+    const students = await this.getStudents();
+    await this.setKeyVal('students', students.filter(s => s.id !== id));
   }
 
   async reorderStudents(students: Student[]): Promise<void> {
-    // No delay needed for UI responsiveness
-    this.set('iep_students', students);
+    await this.setKeyVal('students', students);
   }
 
   // --- Goals ---
   async getAllGoals(): Promise<Goal[]> {
-    await delay(DELAY);
-    const allGoals = this.get<Goal>('iep_goals');
-    // Ensure default goals exist if empty
-    if (allGoals.length === 0) {
-       return this.getGoals('1').then(() => this.get<Goal>('iep_goals'));
+    let allGoals = await this.getKeyVal<Goal[]>('goals', []);
+    
+    // Seed default goals if absolutely empty
+    if (allGoals.length === 0 && (await this.getStudents()).length > 0) {
+       const demoGoals = [
+         { id: 'g1', student_id: '1', title: "이름 호명 반응하기", description: "교사가 내 이름을 부르면 눈을 맞추거나 '네'라고 답한다.", icon: 'communication', status: 'in_progress' as GoalStatus },
+         { id: 'g2', student_id: '1', title: "사물 요구하기 (주세요)", description: "원하는 사물을 보고 몸짓과 함께 '주세요'라고 요구한다.", icon: 'social', status: 'in_progress' as GoalStatus },
+         { id: 'g4', student_id: '2', title: "손 씻기 6단계", description: "식사 전 손 씻기 6단계 수칙을 지킨다.", icon: 'self_care', status: 'completed' as GoalStatus },
+         { id: 'g5', student_id: '2', title: "화장실 뒷처리", description: "용변 후 옷을 입고 난 뒤에 물을 내린다.", icon: 'self_care', status: 'in_progress' as GoalStatus }
+       ];
+       await this.setKeyVal('goals', demoGoals);
+       allGoals = demoGoals;
     }
     return allGoals.map(g => ({ ...g, status: g.status || 'in_progress' }));
   }
 
   async getGoals(studentId: string): Promise<Goal[]> {
-    await delay(DELAY);
-    let allGoals = this.get<Goal>('iep_goals');
-    if (allGoals.length === 0) {
-       allGoals = [
-         { 
-            id: 'g1', 
-            student_id: '1', 
-            title: "이름 호명 반응하기", 
-            description: "교사가 내 이름을 부르면 눈을 맞추거나 '네'라고 답한다.",
-            icon: 'communication',
-            status: 'in_progress'
-         },
-         { 
-            id: 'g2', 
-            student_id: '1', 
-            title: "사물 요구하기 (주세요)", 
-            description: "원하는 사물을 보고 몸짓과 함께 '주세요'라고 요구한다.",
-            icon: 'social',
-            status: 'in_progress'
-         },
-         { 
-             id: 'g4', 
-             student_id: '2', 
-             title: "손 씻기 6단계", 
-             description: "식사 전 손 씻기 6단계 수칙을 지킨다.",
-             icon: 'self_care',
-             status: 'completed'
-         },
-         { 
-             id: 'g5', 
-             student_id: '2', 
-             title: "화장실 뒷처리", 
-             description: "용변 후 옷을 입고 난 뒤에 물을 내린다.",
-             icon: 'self_care',
-             status: 'in_progress'
-         }
-       ];
-       this.set('iep_goals', allGoals);
-    }
-    // Ensure status exists for legacy data
-    return allGoals
-        .filter(g => g.student_id === studentId)
-        .map(g => ({ ...g, status: g.status || 'in_progress' }));
+    const allGoals = await this.getAllGoals();
+    return allGoals.filter(g => g.student_id === studentId);
   }
 
   async addGoal(studentId: string, title: string, icon?: string, status: GoalStatus = 'in_progress'): Promise<Goal> {
-    await delay(DELAY);
-    const goals = this.get<Goal>('iep_goals');
+    const goals = await this.getAllGoals();
     const newGoal: Goal = {
       id: generateUUID(),
       student_id: studentId,
@@ -168,13 +221,12 @@ class DatabaseService {
       icon: icon || 'target',
       status
     };
-    this.set('iep_goals', [...goals, newGoal]);
+    await this.setKeyVal('goals', [...goals, newGoal]);
     return newGoal;
   }
 
   async updateGoal(id: string, title: string, description?: string, icon?: string, status?: GoalStatus): Promise<void> {
-    await delay(DELAY);
-    const goals = this.get<Goal>('iep_goals');
+    const goals = await this.getAllGoals();
     const newGoals = goals.map(g => g.id === id ? { 
         ...g, 
         title, 
@@ -182,112 +234,109 @@ class DatabaseService {
         icon,
         status: status || g.status || 'in_progress' 
     } : g);
-    this.set('iep_goals', newGoals);
+    await this.setKeyVal('goals', newGoals);
   }
 
   async deleteGoal(id: string): Promise<void> {
-    await delay(DELAY);
-    const goals = this.get<Goal>('iep_goals');
-    const newGoals = goals.filter(g => g.id !== id);
-    this.set('iep_goals', newGoals);
+    const goals = await this.getAllGoals();
+    await this.setKeyVal('goals', goals.filter(g => g.id !== id));
   }
 
   async reorderGoals(studentId: string, orderedGoals: Goal[]): Promise<void> {
-    // 1. Get all goals
-    const allGoals = this.get<Goal>('iep_goals');
-    // 2. Filter out goals for this student from the main list
+    const allGoals = await this.getAllGoals();
     const otherGoals = allGoals.filter(g => g.student_id !== studentId);
-    // 3. Combine others + new ordered list
-    const newAllGoals = [...otherGoals, ...orderedGoals];
-    this.set('iep_goals', newAllGoals);
+    await this.setKeyVal('goals', [...otherGoals, ...orderedGoals]);
   }
 
   // --- Logs (Trials) ---
   async getLogs(goalId: string): Promise<ObservationLog[]> {
-    await delay(DELAY);
-    const logs = this.get<ObservationLog>('iep_logs');
-    // Normalize old data structure if needed (ensure measurementType exists)
-    return logs.filter(l => l.goal_id === goalId).map(l => ({
+    const db = await this.dbPromise;
+    const logs = await db.getAllFromIndex('logs', 'by-goal', goalId);
+    
+    // Normalize logic for legacy support
+    return logs.map(l => ({
         ...l,
-        measurementType: l.measurementType || 'accuracy',
+        measurementType: 'accuracy', // Force accuracy
         value: l.value !== undefined ? l.value : (l.accuracy || 0)
     }));
   }
 
   async getStudentLogs(studentId: string): Promise<ObservationLog[]> {
-    await delay(DELAY);
-    const allGoals = this.get<Goal>('iep_goals');
-    const studentGoalIds = allGoals.filter(g => g.student_id === studentId).map(g => g.id);
-    const logs = this.get<ObservationLog>('iep_logs');
-    return logs
-        .filter(l => studentGoalIds.includes(l.goal_id))
-        .map(l => ({
-            ...l,
-            measurementType: l.measurementType || 'accuracy',
-            value: l.value !== undefined ? l.value : (l.accuracy || 0)
-        }));
+    const goals = await this.getGoals(studentId);
+    const goalIds = goals.map(g => g.id);
+
+    const db = await this.dbPromise;
+    const promises = goalIds.map(gid => db.getAllFromIndex('logs', 'by-goal', gid));
+    const results = await Promise.all(promises);
+    
+    const logs = results.flat();
+
+    return logs.map(l => ({
+        ...l,
+        measurementType: 'accuracy', // Force accuracy
+        value: l.value !== undefined ? l.value : (l.accuracy || 0)
+    }));
   }
 
   async addLog(
       goalId: string, 
-      type: MeasurementType, 
       value: number, 
       promptLevel: PromptLevel, 
       media_uri?: string, 
       notes?: string
     ): Promise<ObservationLog> {
-    await delay(100); 
-    const logs = this.get<ObservationLog>('iep_logs');
+    
     const newLog: ObservationLog = {
       id: generateUUID(),
       goal_id: goalId,
-      measurementType: type,
+      measurementType: 'accuracy',
       value: value,
-      accuracy: type === 'accuracy' ? value : 0, // Backward compat
+      accuracy: value, // legacy backup
       promptLevel,
       timestamp: Date.now(),
       media_uri,
       notes
     };
-    this.set('iep_logs', [...logs, newLog]);
+    
+    const db = await this.dbPromise;
+    await db.add('logs', newLog);
     return newLog;
   }
 
   async deleteLog(logId: string): Promise<void> {
-    await delay(100);
-    const logs = this.get<ObservationLog>('iep_logs');
-    const newLogs = logs.filter(l => l.id !== logId);
-    this.set('iep_logs', newLogs);
+    const db = await this.dbPromise;
+    await db.delete('logs', logId);
   }
 
   async updateLog(
       logId: string, 
-      type: MeasurementType, 
       value: number, 
       promptLevel: PromptLevel, 
       timestamp: number, 
       media_uri?: string, 
       notes?: string
     ): Promise<void> {
-    await delay(100);
-    const logs = this.get<ObservationLog>('iep_logs');
-    const newLogs = logs.map(l => l.id === logId ? { 
-        ...l, 
-        measurementType: type,
+    
+    const db = await this.dbPromise;
+    const oldLog = await db.get('logs', logId);
+    if (!oldLog) throw new Error("Log not found");
+
+    const updatedLog: ObservationLog = {
+        ...oldLog,
+        measurementType: 'accuracy',
         value,
-        accuracy: type === 'accuracy' ? value : 0, // Backward compat
-        promptLevel, 
-        timestamp, 
-        media_uri, 
-        notes 
-    } : l);
-    this.set('iep_logs', newLogs);
+        accuracy: value,
+        promptLevel,
+        timestamp,
+        media_uri,
+        notes
+    };
+    await db.put('logs', updatedLog);
   }
 
   // --- Assessments ---
   async getAssessments(): Promise<Assessment[]> {
-    await delay(DELAY);
-    let data = this.get<Assessment>('iep_assessments');
+    let data = await this.getKeyVal<Assessment[]>('assessments', []);
     if (data.length === 0) {
       data = [
         {
@@ -300,13 +349,13 @@ class DatabaseService {
           ]
         }
       ];
-      this.set('iep_assessments', data);
+      await this.setKeyVal('assessments', data);
     }
     return data;
   }
 
   async updateAssessmentItem(assessmentId: string, itemId: string, status: 'good' | 'neutral' | 'bad'): Promise<void> {
-    const data = this.get<Assessment>('iep_assessments');
+    const data = await this.getAssessments();
     const newData = data.map(a => {
       if (a.id !== assessmentId) return a;
       return {
@@ -314,7 +363,7 @@ class DatabaseService {
         items: a.items.map(i => i.id === itemId ? { ...i, status } : i)
       };
     });
-    this.set('iep_assessments', newData);
+    await this.setKeyVal('assessments', newData);
   }
 
   // --- Materials ---
@@ -329,12 +378,15 @@ class DatabaseService {
 
   // --- Data Export/Import ---
   async exportData(): Promise<string> {
+    const db = await this.dbPromise;
+    const logs = await db.getAll('logs');
+
     const data = {
-        students: this.get('iep_students'),
-        goals: this.get('iep_goals'),
-        logs: this.get('iep_logs'),
-        assessments: this.get('iep_assessments'),
-        widgets: this.get('iep_widgets')
+        students: await this.getKeyVal('students', []),
+        goals: await this.getKeyVal('goals', []),
+        logs: logs,
+        assessments: await this.getKeyVal('assessments', []),
+        widgets: await this.getKeyVal('widgets', [])
     };
     return JSON.stringify(data);
   }
@@ -342,11 +394,28 @@ class DatabaseService {
   async importData(jsonString: string): Promise<void> {
     try {
         const data = JSON.parse(jsonString);
-        if (data.students) this.set('iep_students', data.students);
-        if (data.goals) this.set('iep_goals', data.goals);
-        if (data.logs) this.set('iep_logs', data.logs);
-        if (data.assessments) this.set('iep_assessments', data.assessments);
-        if (data.widgets) this.set('iep_widgets', data.widgets);
+        const db = await this.dbPromise;
+
+        // Import KeyVal items
+        const txKeyVal = db.transaction('keyval', 'readwrite');
+        if (data.students) await txKeyVal.store.put(data.students, 'students');
+        if (data.goals) await txKeyVal.store.put(data.goals, 'goals');
+        if (data.assessments) await txKeyVal.store.put(data.assessments, 'assessments');
+        if (data.widgets) await txKeyVal.store.put(data.widgets, 'widgets');
+        await txKeyVal.done;
+
+        // Import Logs
+        if (data.logs && Array.isArray(data.logs)) {
+            const txLogs = db.transaction('logs', 'readwrite');
+            await txLogs.store.clear();
+            for (const log of data.logs) {
+                // Ensure accuracy compatibility on import
+                if (!log.measurementType) log.measurementType = 'accuracy';
+                await txLogs.store.put(log);
+            }
+            await txLogs.done;
+        }
+
     } catch (e) {
         console.error("Failed to import data", e);
         throw new Error("Invalid data format");

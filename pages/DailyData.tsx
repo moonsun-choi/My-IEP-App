@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { ObservationLog, PromptLevel, MeasurementType } from '../types';
+import { ObservationLog, PromptLevel } from '../types';
 import { History, X, Filter, CheckSquare, Paperclip, MessageSquare, ClipboardX, Plus } from 'lucide-react';
 import { QuickRecordSheet } from '../components/QuickRecordSheet';
 import { LogCard } from '../components/LogCard';
@@ -56,9 +56,9 @@ export const DailyData: React.FC = () => {
 
   const stats = useMemo(() => {
     const total = logs.length;
-    const accLogs = logs.filter(l => l.measurementType === 'accuracy' || !l.measurementType);
-    const avgAccuracy = accLogs.length > 0 
-        ? Math.round(accLogs.reduce((acc, l) => acc + (l.value || l.accuracy || 0), 0) / accLogs.length) 
+    // Simplify: Assume all logs are valid for accuracy calculation
+    const avgAccuracy = total > 0 
+        ? Math.round(logs.reduce((acc, l) => acc + (l.value || l.accuracy || 0), 0) / total) 
         : 0;
     
     return { total, avgAccuracy };
@@ -94,13 +94,13 @@ export const DailyData: React.FC = () => {
     setIsSheetOpen(true);
   };
 
-  const handleSheetSave = async (type: MeasurementType, value: number, promptLevel: PromptLevel, timestamp?: number, mediaUri?: string, notes?: string) => {
+  const handleSheetSave = async (value: number, promptLevel: PromptLevel, timestamp?: number, mediaUri?: string | File, notes?: string) => {
     if (!selectedGoalId) return;
 
     if (editingLog) {
-        await updateLog(editingLog.id, selectedGoalId, type, value, promptLevel, timestamp || editingLog.timestamp, mediaUri, notes);
+        await updateLog(editingLog.id, selectedGoalId, value, promptLevel, timestamp || editingLog.timestamp, mediaUri, notes);
     } else {
-        await recordTrial(selectedGoalId, type, value, promptLevel, mediaUri, notes);
+        await recordTrial(selectedGoalId, value, promptLevel, mediaUri, notes);
     }
   };
 
@@ -282,7 +282,6 @@ export const DailyData: React.FC = () => {
         onDelete={editingLog ? handleSheetDelete : undefined}
         goalTitle={currentGoal?.title || ''}
         
-        initialType={editingLog?.measurementType || 'accuracy'}
         initialValue={editingLog?.value}
         
         initialPromptLevel={editingLog ? editingLog.promptLevel : 'verbal'}

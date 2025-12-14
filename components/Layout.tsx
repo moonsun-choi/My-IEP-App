@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen } from 'lucide-react';
+import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen, CloudOff, AlertTriangle, RefreshCw } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
 
@@ -12,17 +12,31 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const { exportData, importData } = useStore();
+  const { isLoggedIn, isOnline, syncStatus, setLoggedIn, setOnlineStatus, syncCloudToLocal, syncLocalToCloud } = useStore();
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  
   useEffect(() => {
+    // 1. Init Google Drive
     googleDriveService.init(() => {
-        // Check if previously logged in logic could go here
+        // We could verify login status here if token exists in session storage
+        // But Google GIS 'requestAccessToken' with empty prompt usually handles silent auth if possible,
+        // or we just wait for user to click login.
     });
-  }, []);
+
+    // 2. Setup Online/Offline listeners
+    const handleOnline = () => setOnlineStatus(true);
+    const handleOffline = () => setOnlineStatus(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Initial Check
+    setOnlineStatus(navigator.onLine);
+
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
+  }, [setOnlineStatus]);
 
   // Close sidebar automatically when route changes
   useEffect(() => {
@@ -32,7 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleGoogleLogin = async () => {
       try {
           await googleDriveService.login();
-          setIsLoggedIn(true);
+          setLoggedIn(true);
       } catch (e: any) {
           console.error("Login Failed:", e);
           
@@ -42,55 +56,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               alert("Google 서비스가 아직 로딩 중입니다. 잠시 후 다시 시도해주세요.");
           } else if (e.type === 'popup_blocked_by_browser') {
               alert("브라우저가 로그인 팝업을 차단했습니다. 팝업 차단을 해제하고 다시 시도해주세요.");
-          } else if (e.type === 'popup_closed_by_user') {
-              // User closed the popup, no need to alert error
           } else {
-              alert("로그인 중 오류가 발생했습니다. (콘솔 확인 필요)");
+              alert("로그인 중 오류가 발생했습니다.");
           }
-      }
-  };
-
-  const handleBackup = async () => {
-      if (!isLoggedIn) return;
-      setIsSyncing(true);
-      setSyncStatus('idle');
-      try {
-          const data = await exportData();
-          await googleDriveService.uploadBackup(data);
-          setSyncStatus('success');
-          setTimeout(() => setSyncStatus('idle'), 3000);
-          
-          if (!googleDriveService.isConfigured()) {
-              alert("백업 완료 (시뮬레이션)\n* 실제 Google Drive 연동을 위해선 코드를 설정해야 합니다.");
-          }
-      } catch (e) {
-          console.error(e);
-          setSyncStatus('error');
-          alert("백업 실패");
-      } finally {
-          setIsSyncing(false);
-      }
-  };
-
-  const handleRestore = async () => {
-      if (!isLoggedIn) return;
-      if (!confirm("현재 데이터를 덮어쓰고 복원하시겠습니까?")) return;
-
-      setIsSyncing(true);
-      try {
-          const json = await googleDriveService.downloadBackup();
-          if (json) {
-            await importData(json);
-            alert("복원 완료되었습니다.");
-            window.location.reload();
-          } else {
-            alert("백업 파일을 찾을 수 없거나 (시뮬레이션 모드) 파일이 비어있습니다.");
-          }
-      } catch (e) {
-          console.error(e);
-          alert("복원 실패");
-      } finally {
-          setIsSyncing(false);
       }
   };
 
@@ -105,6 +73,79 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (location.pathname.startsWith('/student/')) return '개별화교육(IEP) 상세';
     const current = menuItems.find(item => item.path === location.pathname);
     return current ? current.label : 'My IEP App';
+  };
+
+  // Status UI Helper
+  const renderSyncStatus = () => {
+      if (!isOnline) {
+          return (
+              <div className="flex items-center gap-2 text-gray-400">
+                  <CloudOff size={16} />
+                  <span className="text-xs font-bold">오프라인 모드</span>
+              </div>
+          );
+      }
+      
+      if (!isLoggedIn) {
+          return (
+              <button 
+                onClick={handleGoogleLogin}
+                className="w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95"
+              >
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
+                Google 로그인 및 동기화
+              </button>
+          );
+      }
+
+      if (syncStatus === 'syncing') {
+          return (
+              <div className="flex items-center justify-center gap-2 text-indigo-600 py-2">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span className="text-xs font-bold">동기화 중...</span>
+              </div>
+          );
+      }
+
+      if (syncStatus === 'cloud_newer') {
+          return (
+            <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 animate-pulse">
+                <div className="flex items-center gap-2 text-orange-600 mb-2">
+                    <AlertTriangle size={16} />
+                    <span className="text-xs font-bold">클라우드 데이터 발견</span>
+                </div>
+                <button 
+                    onClick={() => syncCloudToLocal()}
+                    className="w-full bg-orange-100 hover:bg-orange-200 text-orange-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
+                >
+                    <Download size={14} />
+                    데이터 내려받기 (복원)
+                </button>
+            </div>
+          );
+      }
+      
+      // Default: Logged in and Idle/Saved
+      return (
+          <div className="space-y-3">
+              <div className="flex items-center justify-between text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
+                  <div className="flex items-center gap-2">
+                    <Cloud size={16} />
+                    <span className="text-xs font-bold">동기화 완료</span>
+                  </div>
+                  {syncStatus === 'saved' && <span className="text-[10px] font-medium">방금 전</span>}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2 opacity-50 hover:opacity-100 transition-opacity">
+                   <button onClick={() => syncLocalToCloud()} className="text-[10px] flex items-center justify-center gap-1 py-1 bg-gray-100 rounded text-gray-500 hover:bg-gray-200">
+                       <Upload size={10} /> 강제 업로드
+                   </button>
+                   <button onClick={() => syncCloudToLocal()} className="text-[10px] flex items-center justify-center gap-1 py-1 bg-gray-100 rounded text-gray-500 hover:bg-gray-200">
+                       <Download size={10} /> 강제 다운로드
+                   </button>
+              </div>
+          </div>
+      );
   };
 
   return (
@@ -176,61 +217,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           })}
         </nav>
 
-        {/* Footer / Cloud Sync */}
+        {/* Footer / Cloud Sync Status */}
         <div className="p-4 mt-auto">
-            <div className={`rounded-2xl border p-4 transition-all duration-300 ${isLoggedIn ? 'bg-white border-gray-100 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
-                <div className="flex items-center gap-2 mb-3">
-                    <div className={`p-1.5 rounded-lg ${isLoggedIn ? 'bg-green-100 text-green-600' : 'bg-gray-200 text-gray-500'}`}>
-                        <Cloud size={14} fill="currentColor" />
-                    </div>
-                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-                        {isLoggedIn ? 'Cloud Connected' : 'Backup Sync'}
-                    </span>
+            <div className="rounded-2xl border border-gray-100 p-4 bg-gray-50/50">
+                <div className="mb-3">
+                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Cloud Sync</div>
+                    {renderSyncStatus()}
                 </div>
-                
-                {!isLoggedIn ? (
-                    <button 
-                        onClick={handleGoogleLogin}
-                        className="w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95"
-                    >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                        Google 로그인
-                    </button>
-                ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                        <button 
-                            onClick={handleBackup}
-                            disabled={isSyncing}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
-                        >
-                            {isSyncing ? <Loader2 size={16} className="animate-spin"/> : <Upload size={16} />}
-                            백업하기
-                        </button>
-                        <button 
-                            onClick={handleRestore}
-                            disabled={isSyncing}
-                            className="bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 py-2.5 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all active:scale-95 disabled:opacity-50 disabled:active:scale-100"
-                        >
-                            {isSyncing ? <Loader2 size={16} className="animate-spin"/> : <Download size={16} />}
-                            복원하기
-                        </button>
-                    </div>
-                )}
-                
-                {syncStatus === 'success' && (
-                    <div className="flex items-center justify-center gap-1.5 mt-3 text-[10px] font-bold text-green-600 animate-pulse">
-                        <CheckSquare size={10} />
-                        <span>데이터 동기화 완료</span>
-                    </div>
-                )}
             </div>
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.1.0 (Beta)</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.0 (Auto-Sync)</p>
             </div>
         </div>
       </div>
@@ -255,9 +251,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         {getPageTitle()}
                     </h1>
                     <span className="text-[10px] md:text-xs font-medium text-gray-400 truncate">
-                        My IEP App Workspace
+                        {isOnline ? 'Online Mode' : 'Offline Mode (Local Storage)'}
                     </span>
                 </div>
+            </div>
+            
+            {/* Header Status Icon (Mobile/Desktop) */}
+            <div className="flex items-center gap-2">
+                 {!isOnline && <CloudOff size={20} className="text-gray-300" />}
+                 {isOnline && isLoggedIn && syncStatus === 'saved' && <CheckSquare size={20} className="text-green-500" />}
+                 {isOnline && isLoggedIn && syncStatus === 'syncing' && <RefreshCw size={20} className="text-indigo-500 animate-spin" />}
             </div>
           </div>
         </header>

@@ -256,7 +256,7 @@ export const Dashboard: React.FC = () => {
                                     </div>
                                 )}
                                 <span className="text-xs text-indigo-600 font-bold">
-                                    {log.measurementType === 'accuracy' ? `정확도 ${log.value}%` : '기록됨'}
+                                    {`정확도 ${log.value}%`}
                                 </span>
                             </div>
                         </div>

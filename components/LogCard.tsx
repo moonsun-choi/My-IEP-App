@@ -46,7 +46,7 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
       className="w-full bg-white p-3 md:p-4 rounded-2xl border border-gray-100 flex items-center justify-between active:scale-[0.99] hover:shadow-md transition-all group"
     >
       <div className="flex items-center gap-3 md:gap-4 w-full">
-        {/* Value Box */}
+        {/* Value Box - Always Percentage */}
         <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold relative overflow-hidden shrink-0 transition-transform group-hover:scale-105 ${getValueColorClass(value)}`}>
           {log.media_uri && (
             isVideo ? (
