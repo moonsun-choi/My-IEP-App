@@ -12,15 +12,16 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
   const location = useLocation();
   const { isLoggedIn, isOnline, syncStatus, setLoggedIn, setOnlineStatus, syncCloudToLocal, syncLocalToCloud } = useStore();
 
   useEffect(() => {
     // 1. Init Google Drive
     googleDriveService.init(() => {
-        // We could verify login status here if token exists in session storage
-        // But Google GIS 'requestAccessToken' with empty prompt usually handles silent auth if possible,
-        // or we just wait for user to click login.
+        // Callback when ready
+        setIsGoogleScriptReady(true);
+        console.log("Google Service Initialized");
     });
 
     // 2. Setup Online/Offline listeners
@@ -59,6 +60,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [location]);
 
   const handleGoogleLogin = async () => {
+      if (!isGoogleScriptReady) {
+          toast.loading("Google 서비스 준비 중입니다...");
+          return;
+      }
+
       try {
           await googleDriveService.login();
           setLoggedIn(true);
@@ -68,7 +74,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           
           if (e.message === "Configuration missing") {
               toast.error("Google API 설정이 누락되었습니다");
-          } else if (e.message?.includes("not initialized")) {
+          } else if (e.message?.includes("not initialized") || e.message?.includes("로딩 중")) {
               toast.loading("Google 서비스 로딩 중...");
           } else if (e.type === 'popup_blocked_by_browser') {
               toast.error("브라우저 팝업이 차단되었습니다");
@@ -106,10 +112,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           return (
               <button 
                 onClick={handleGoogleLogin}
-                className="w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95"
+                disabled={!isGoogleScriptReady}
+                className={`w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
-                Google 로그인 및 동기화
+                {isGoogleScriptReady ? (
+                    <>
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
+                        Google 로그인 및 동기화
+                    </>
+                ) : (
+                    <>
+                        <Loader2 size={16} className="animate-spin text-gray-400" />
+                        서비스 로딩 중...
+                    </>
+                )}
               </button>
           );
       }

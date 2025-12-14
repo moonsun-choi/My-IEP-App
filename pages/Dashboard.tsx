@@ -2,9 +2,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { Target, ChevronRight, Settings, BarChart2, X, CheckSquare, Sparkles, ArrowRight, Activity, CalendarClock, Users, LogOut } from 'lucide-react';
+import { Target, ChevronRight, Settings, BarChart2, CheckSquare, Sparkles, ArrowRight, Activity, Users, LogOut } from 'lucide-react';
 import { WidgetType } from '../types';
-import { getGoalIcon } from '../utils/goalIcons';
 import { useBackExit } from '../hooks/useBackExit';
 
 export const Dashboard: React.FC = () => {
@@ -63,14 +62,14 @@ export const Dashboard: React.FC = () => {
   const WIDGET_CONFIG: Record<WidgetType, { label: string; desc: string; icon: React.ElementType; color: string; path: string }> = {
       tracker: {
           label: '관찰 기록',
-          desc: '실시간 데이터 수집 시작',
+          desc: '실시간 데이터 수집',
           icon: CheckSquare,
           color: 'bg-orange-100 text-orange-600',
           path: '/tracker'
       },
       students: {
           label: '내 학급',
-          desc: '학생 명단 및 목표 설정',
+          desc: '학생 및 목표 관리',
           icon: Users,
           color: 'bg-indigo-100 text-indigo-600',
           path: '/students'
@@ -83,9 +82,11 @@ export const Dashboard: React.FC = () => {
           path: '/reports'
       }
   };
+  
+  const allWidgetKeys = Object.keys(WIDGET_CONFIG) as WidgetType[];
 
   return (
-    <div className="p-4 md:p-8 pb-24 space-y-8 max-w-6xl mx-auto w-full">
+    <div className="p-4 md:p-8 pb-24 space-y-8 max-w-6xl mx-auto w-full animate-fade-in">
       
       {/* 1. Hero Section: Insights & Action */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -150,9 +151,136 @@ export const Dashboard: React.FC = () => {
 
               <div className="flex-1 flex items-end justify-between gap-2 min-h-[140px]">
                   {weeklyActivity.map((d, i) => {
-                      const heightPercent = Math.max((d.count / maxLogCount) * 100, 15); // Min height 15%
+                      const heightPercent = Math.max((d.count / maxLogCount) * 100, 10); 
                       return (
-                          <div key={i} className="flex flex-col items-center gap-2 flex-1 group">
-                              <div className="relative w-full flex justify-end flex-col items-center h-[120px]">
-                                   {/* Tooltip */}
-                                   <div className="absolute -top-8 bg-gray
+                          <div key={i} className="flex flex-col items-center gap-2 flex-1 group relative">
+                              {/* Tooltip on Hover */}
+                              <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-[10px] px-2 py-1 rounded pointer-events-none whitespace-nowrap z-10">
+                                  {d.count}회
+                              </div>
+                              
+                              <div className="w-full h-[120px] flex items-end justify-center bg-gray-50 rounded-xl relative overflow-hidden">
+                                   <div 
+                                      className={`w-full mx-1 rounded-t-lg transition-all duration-500 ease-out ${d.isToday ? 'bg-orange-400' : 'bg-indigo-200 group-hover:bg-indigo-300'}`}
+                                      style={{ height: `${heightPercent}%` }}
+                                   />
+                              </div>
+                              <span className={`text-[10px] font-bold ${d.isToday ? 'text-orange-500' : 'text-gray-400'}`}>
+                                  {d.day}
+                              </span>
+                          </div>
+                      );
+                  })}
+              </div>
+          </div>
+      </div>
+      
+      {/* 2. Widgets Grid */}
+      <div>
+         <div className="flex items-center justify-between mb-4 px-1">
+             <h3 className="font-bold text-xl text-gray-800">바로가기</h3>
+             <button 
+                onClick={() => setIsEditing(!isEditing)}
+                className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${isEditing ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+             >
+                 {isEditing ? <CheckSquare size={14} /> : <Settings size={14} />}
+                 {isEditing ? '완료' : '화면 편집'}
+             </button>
+         </div>
+         
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+             {allWidgetKeys.map((key) => {
+                 const widget = WIDGET_CONFIG[key];
+                 const isActive = activeWidgets.includes(key);
+                 
+                 // If not editing and not active, hide
+                 if (!isEditing && !isActive) return null;
+
+                 return (
+                     <div 
+                        key={key}
+                        onClick={() => {
+                            if (isEditing) {
+                                toggleWidget(key);
+                            } else {
+                                navigate(widget.path);
+                            }
+                        }}
+                        className={`
+                            relative p-5 rounded-2xl border transition-all duration-300 flex items-center gap-4 group
+                            ${isActive 
+                                ? 'bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100 cursor-pointer' 
+                                : 'bg-gray-50 border-dashed border-gray-200 opacity-60'
+                            }
+                            ${isEditing ? 'cursor-pointer hover:opacity-100' : ''}
+                        `}
+                     >
+                         {/* Edit Mode Checkbox */}
+                         {isEditing && (
+                             <div className={`absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isActive ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 bg-white'}`}>
+                                 {isActive && <CheckSquare size={12} className="text-white" />}
+                             </div>
+                         )}
+
+                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${widget.color}`}>
+                             <widget.icon size={28} />
+                         </div>
+                         
+                         <div>
+                             <h4 className={`font-bold text-lg ${!isActive && isEditing ? 'text-gray-500' : 'text-gray-800'}`}>
+                                 {widget.label}
+                             </h4>
+                             <p className="text-xs text-gray-400 font-medium mt-0.5">{widget.desc}</p>
+                         </div>
+
+                         {!isEditing && (
+                             <div className="ml-auto text-gray-300 group-hover:text-indigo-400 transition-colors">
+                                 <ChevronRight size={20} />
+                             </div>
+                         )}
+                     </div>
+                 );
+             })}
+             
+             {/* Add New Hint (only in edit mode if all are active?) */}
+             {isEditing && activeWidgets.length < allWidgetKeys.length && (
+                  <div className="p-5 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 gap-2 min-h-[100px]">
+                      <span className="text-xs font-bold">비활성화된 메뉴를 터치하여 추가하세요</span>
+                  </div>
+             )}
+         </div>
+      </div>
+
+      {/* Exit Modal */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={cancelExit}>
+            <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-scale-up" onClick={e => e.stopPropagation()}>
+                <div className="flex flex-col items-center text-center mb-6">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
+                        <LogOut size={32} />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">앱 종료</h3>
+                    <p className="text-gray-500 text-sm">
+                        정말 앱을 종료하시겠습니까?
+                    </p>
+                </div>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={cancelExit}
+                        className="flex-1 py-3.5 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                    >
+                        취소
+                    </button>
+                    <button 
+                        onClick={confirmExit}
+                        className="flex-1 py-3.5 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-900 transition-colors"
+                    >
+                        종료하기
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+    </div>
+  );
+};
