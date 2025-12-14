@@ -31,6 +31,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         setIsGoogleScriptReady(true);
         setIsScriptSlow(false);
         console.log("Google Service Initialized");
+    }).catch(err => {
+        console.log("Initial Google service load failed (will retry on user interaction):", err);
     });
 
     // 2. Setup Online/Offline listeners
@@ -71,9 +73,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const handleGoogleLogin = async () => {
       // Allow retry if script is slow/failed initially
-      if (!isGoogleScriptReady && !isScriptSlow) {
-          toast.loading("Google 서비스 준비 중입니다...");
-          return;
+      if (!isGoogleScriptReady) {
+          const loadingToast = toast.loading("Google 서비스 연결 재시도 중...");
+          try {
+            await googleDriveService.init(() => {
+                setIsGoogleScriptReady(true);
+                setIsScriptSlow(false);
+            });
+            toast.dismiss(loadingToast);
+          } catch (e) {
+            toast.dismiss(loadingToast);
+            toast.error("네트워크 연결을 확인해주세요.");
+            return;
+          }
       }
 
       try {
@@ -86,9 +98,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           if (e.message === "Configuration missing") {
               toast.error("Google API 설정이 누락되었습니다");
           } else if (e.message?.includes("not initialized") || e.message?.includes("로딩 중")) {
-              toast.error("서비스 재연결 중입니다. 다시 시도해주세요.");
-              // Trigger re-init attempt behind scenes if possible or just wait
-              window.location.reload(); 
+              toast.error("서비스 재연결 중입니다. 잠시 후 다시 시도해주세요.");
+              // Trigger re-init attempt behind scenes if possible
+              googleDriveService.init().catch(() => {});
           } else if (e.type === 'popup_blocked_by_browser') {
               toast.error("브라우저 팝업이 차단되었습니다");
           } else {

@@ -40,7 +40,13 @@ const loadScript = (src: string): Promise<void> => {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = (err) => reject(err);
+    script.onerror = (err) => {
+        // Cleanup on error so we can retry cleanly
+        if (document.body.contains(script)) {
+            document.body.removeChild(script);
+        }
+        reject(err);
+    };
     document.body.appendChild(script);
   });
 };
@@ -56,7 +62,13 @@ export const googleDriveService = {
   },
 
   // Initialize gapi client
-  init: async (onInitCallback: () => void) => {
+  init: async (onInitCallback?: () => void): Promise<void> => {
+    // Prevent redundant initialization
+    if (googleDriveService.isReady()) {
+        if (onInitCallback) onInitCallback();
+        return;
+    }
+
     try {
         // 1. Load Scripts Dynamically (Robust for Mobile)
         await Promise.all([
@@ -65,7 +77,7 @@ export const googleDriveService = {
         ]);
     } catch (e) {
         console.error("Failed to load Google Scripts. Check network connection.", e);
-        return; // Stop initialization if scripts fail
+        throw new Error("Network error loading Google Scripts");
     }
 
     // 2. Wait for global objects
@@ -76,8 +88,7 @@ export const googleDriveService = {
     }
 
     if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
-         console.error('Google global objects not found after loading scripts.');
-         return;
+         throw new Error("Google global objects not found");
     }
 
     // 3. Init GAPI
@@ -120,7 +131,7 @@ export const googleDriveService = {
     });
 
     await Promise.all([gapiLoaded, gisLoaded]);
-    onInitCallback();
+    if (onInitCallback) onInitCallback();
   },
 
   // Trigger Google Login
