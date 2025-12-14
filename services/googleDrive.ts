@@ -27,6 +27,24 @@ let gisInited = false;
 // Helpers
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Dynamic Script Loader
+const loadScript = (src: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    // If already loaded
+    if (document.querySelector(`script[src="${src}"]`)) {
+        resolve();
+        return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = (err) => reject(err);
+    document.body.appendChild(script);
+  });
+};
+
 export const googleDriveService = {
   isConfigured: () => {
     return !!CLIENT_ID && !!API_KEY && !CLIENT_ID.includes('YOUR_CLIENT_ID');
@@ -37,23 +55,32 @@ export const googleDriveService = {
       return gapiInited && gisInited;
   },
 
-  // Initialize gapi client (load scripts first in index.html)
+  // Initialize gapi client
   init: async (onInitCallback: () => void) => {
-    // Retry mechanism for script loading (increased for mobile)
-    let attempts = 0;
-    const checkInterval = 250;
-    const maxAttempts = 120; // 120 * 250ms = 30 seconds
+    try {
+        // 1. Load Scripts Dynamically (Robust for Mobile)
+        await Promise.all([
+            loadScript('https://apis.google.com/js/api.js'),
+            loadScript('https://accounts.google.com/gsi/client')
+        ]);
+    } catch (e) {
+        console.error("Failed to load Google Scripts. Check network connection.", e);
+        return; // Stop initialization if scripts fail
+    }
 
-    while ((typeof window.gapi === 'undefined' || typeof window.google === 'undefined') && attempts < maxAttempts) {
-        await wait(checkInterval);
+    // 2. Wait for global objects
+    let attempts = 0;
+    while ((typeof window.gapi === 'undefined' || typeof window.google === 'undefined') && attempts < 50) {
+        await wait(100);
         attempts++;
     }
 
     if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
-         console.error('Google scripts failed to load after 30 seconds.');
+         console.error('Google global objects not found after loading scripts.');
          return;
     }
 
+    // 3. Init GAPI
     const gapiLoaded = new Promise<void>((resolve) => {
       window.gapi.load('client', async () => {
         try {
@@ -67,13 +94,13 @@ export const googleDriveService = {
             resolve();
         } catch(e) {
             console.error("GAPI Init Error", e);
-            // Even if init fails (e.g. cookies disabled), mark as attempted so app doesn't hang
-            gapiInited = true; 
+            gapiInited = true; // Mark as attempted to prevent blocking UI
             resolve();
         }
       });
     });
 
+    // 4. Init GIS
     const gisLoaded = new Promise<void>((resolve) => {
       if (googleDriveService.isConfigured()) {
           try {
@@ -87,7 +114,6 @@ export const googleDriveService = {
             console.error("GIS Init Error", e);
           }
       } else {
-          // If not configured, we still mark as inited to allow local usage
           gisInited = true;
       }
       resolve();
@@ -102,7 +128,8 @@ export const googleDriveService = {
     // Wait until ready if called too early
     if (!tokenClient && googleDriveService.isConfigured()) {
         if (!gisInited) {
-            throw new Error("Google 서비스가 아직 로딩 중입니다. 잠시 후 다시 시도해주세요.");
+            // Attempt to re-initialize if called before ready
+            throw new Error("Google 서비스 초기화 중입니다. 잠시 후 다시 시도해주세요.");
         }
     }
 
@@ -113,8 +140,7 @@ export const googleDriveService = {
       }
       
       if (!tokenClient) {
-           // Should be caught by isReady check, but double check
-          reject(new Error("Google Identity Services failed to initialize."));
+          reject(new Error("Google Login Client not ready."));
           return;
       }
 
@@ -129,7 +155,9 @@ export const googleDriveService = {
 
       // Request token.
       try {
-          tokenClient.requestAccessToken({ prompt: '' });
+          // 'prompt' option can sometimes cause issues on mobile if popup is blocked.
+          // We rely on the user click event bubbling up.
+          tokenClient.requestAccessToken({ prompt: 'consent' });
       } catch (e) {
           reject(e);
       }

@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   GripVertical, Trash2, Edit2, Check, Pause, Target
 } from 'lucide-react';
@@ -14,6 +13,7 @@ interface SortableGoalItemProps {
   onEdit: (goal: Goal) => void;
   onDelete: (goal: Goal) => void;
   onIconClick: (goal: Goal) => void;
+  onEnableEditMode: () => void;
 }
 
 export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({ 
@@ -21,7 +21,8 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
     isEditMode, 
     onEdit,
     onDelete,
-    onIconClick
+    onIconClick,
+    onEnableEditMode
 }) => {
   const {
     attributes,
@@ -36,17 +37,33 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
       disabled: !isEditMode
   });
   
-  // --- Swipe Logic ---
+  // --- Swipe & Long Press Logic ---
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchOffset, setTouchOffset] = useState(0);
+  const longPressTimer = useRef<any>(null);
   const minSwipeDistance = 80;
 
   const handleTouchStart = (e: React.TouchEvent) => {
-      if (!isEditMode) return;
-      setTouchStart(e.targetTouches[0].clientX);
+      // Long Press Detection (for triggering edit mode)
+      if (!isEditMode) {
+          longPressTimer.current = setTimeout(() => {
+              if (navigator.vibrate) navigator.vibrate(50);
+              onEnableEditMode();
+          }, 500); // 500ms long press
+      }
+
+      if (isEditMode) {
+          setTouchStart(e.targetTouches[0].clientX);
+      }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+      // Cancel long press
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+
       if (!isEditMode || touchStart === null) return;
       const currentX = e.targetTouches[0].clientX;
       const diff = currentX - touchStart;
@@ -58,6 +75,12 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
   };
 
   const handleTouchEnd = () => {
+      // Cancel long press
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+
       if (!isEditMode || touchStart === null) return;
       
       if (touchOffset > minSwipeDistance) {
@@ -69,7 +92,18 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
       setTouchStart(null);
       setTouchOffset(0); // Snap back
   };
-
+  
+  // Mouse equivalents for desktop
+  const handleMouseDown = () => {
+    if (!isEditMode) {
+        longPressTimer.current = setTimeout(() => {
+            onEnableEditMode();
+        }, 500);
+    }
+  };
+  const handleMouseUp = () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -150,6 +184,9 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
         
         // Handle click on container
         onClick={(e) => {

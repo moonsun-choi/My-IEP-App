@@ -21,10 +21,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   useEffect(() => {
     // 1. Init Google Drive
     
-    // Set a timeout to indicate slow network if scripts don't load quickly
+    // Set a longer timeout for mobile networks
     const slowTimer = setTimeout(() => {
         if (!isGoogleScriptReady) setIsScriptSlow(true);
-    }, 6000); // 6 seconds
+    }, 15000); // Increased to 15 seconds
 
     googleDriveService.init(() => {
         // Callback when ready
@@ -70,7 +70,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [location]);
 
   const handleGoogleLogin = async () => {
-      if (!isGoogleScriptReady) {
+      // Allow retry if script is slow/failed initially
+      if (!isGoogleScriptReady && !isScriptSlow) {
           toast.loading("Google 서비스 준비 중입니다...");
           return;
       }
@@ -85,7 +86,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           if (e.message === "Configuration missing") {
               toast.error("Google API 설정이 누락되었습니다");
           } else if (e.message?.includes("not initialized") || e.message?.includes("로딩 중")) {
-              toast.loading("Google 서비스 로딩 중...");
+              toast.error("서비스 재연결 중입니다. 다시 시도해주세요.");
+              // Trigger re-init attempt behind scenes if possible or just wait
+              window.location.reload(); 
           } else if (e.type === 'popup_blocked_by_browser') {
               toast.error("브라우저 팝업이 차단되었습니다");
           } else {
@@ -142,9 +145,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       if (!isLoggedIn) {
           return (
               <button 
-                onClick={isScriptSlow ? () => window.location.reload() : handleGoogleLogin}
-                disabled={!isGoogleScriptReady && !isScriptSlow}
-                className={`w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
+                onClick={handleGoogleLogin}
+                className={`w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95`}
               >
                 {isGoogleScriptReady ? (
                     <>
@@ -154,7 +156,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 ) : isScriptSlow ? (
                     <>
                         <RefreshCw size={16} className="text-amber-500" />
-                        연결 지연 (터치하여 새로고침)
+                        연결 지연 (터치하여 재시도)
                     </>
                 ) : (
                     <>

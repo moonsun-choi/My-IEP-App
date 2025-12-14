@@ -223,6 +223,7 @@ export const StudentDetail: React.FC = () => {
                                     onEdit={openEditSheet}
                                     onDelete={handleDeleteGoal}
                                     onIconClick={handleIconClick}
+                                    onEnableEditMode={() => setIsEditMode(true)}
                                 />
                             ))}
                         </SortableContext>

@@ -28,6 +28,10 @@ interface ExtendedAppState extends AppState {
     syncLocalToCloud: () => Promise<void>;
     syncCloudToLocal: () => Promise<void>;
 
+    // Student Actions Override
+    addStudent: (name: string, photo_uri?: string) => Promise<void>;
+    updateStudent: (id: string, name: string, photo_uri?: string) => Promise<void>;
+
     reorderGoals: (studentId: string, goals: Goal[]) => Promise<void>;
     fetchAllGoals: () => Promise<void>;
     addGoal: (studentId: string, title: string, description?: string, icon?: string, status?: GoalStatus) => Promise<void>;
@@ -165,10 +169,10 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             }
         },
 
-        addStudent: async (name: string) => {
+        addStudent: async (name: string, photo_uri?: string) => {
             set({ isLoading: true });
             try {
-            await db.addStudent(name);
+            await db.addStudent(name, photo_uri);
             await get().fetchStudents();
             markDirty();
             toast.success('학생이 추가되었습니다');
@@ -177,8 +181,8 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             }
         },
 
-        updateStudent: async (id: string, name: string) => {
-            await db.updateStudent(id, name);
+        updateStudent: async (id: string, name: string, photo_uri?: string) => {
+            await db.updateStudent(id, name, photo_uri);
             await get().fetchStudents();
             markDirty();
             toast.success('학생 정보 수정됨');

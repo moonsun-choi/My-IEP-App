@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { Check, ArrowUpDown, Trash2, Plus, Edit2, Camera } from 'lucide-react';
@@ -19,6 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { SortableStudentItem } from '../components/SortableStudentItem';
 import { Student } from '../types';
+import { googleDriveService } from '../services/googleDrive';
 
 export const StudentList: React.FC = () => {
   const { students, goals, fetchStudents, fetchAllGoals, isLoading, addStudent, reorderStudents, updateStudent, deleteStudent } = useStore();
@@ -32,6 +33,10 @@ export const StudentList: React.FC = () => {
   
   // Shared Input State for Sheet
   const [tempStudentName, setTempStudentName] = useState('');
+  const [tempStudentPhoto, setTempStudentPhoto] = useState<string>('');
+
+  // File Input Ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -61,6 +66,7 @@ export const StudentList: React.FC = () => {
   // Open Add Sheet
   const openAddSheet = () => {
       setTempStudentName('');
+      setTempStudentPhoto('');
       setIsAdding(true);
       setSettingsStudent(null);
   };
@@ -69,6 +75,7 @@ export const StudentList: React.FC = () => {
   const handleSettingsClick = (student: Student) => {
     setSettingsStudent(student);
     setTempStudentName(student.name);
+    setTempStudentPhoto(student.photo_uri || '');
     setIsAdding(false);
   };
 
@@ -76,12 +83,14 @@ export const StudentList: React.FC = () => {
       setIsAdding(false);
       setSettingsStudent(null);
       setTempStudentName('');
+      setTempStudentPhoto('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleAddStudent = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!tempStudentName.trim()) return;
-    await addStudent(tempStudentName);
+    await addStudent(tempStudentName, tempStudentPhoto);
     closeSheet();
   };
 
@@ -93,9 +102,9 @@ export const StudentList: React.FC = () => {
   };
 
   // Functions for Sheet
-  const handleUpdateStudentName = async () => {
+  const handleUpdateStudent = async () => {
       if(settingsStudent && tempStudentName.trim()) {
-          await updateStudent(settingsStudent.id, tempStudentName);
+          await updateStudent(settingsStudent.id, tempStudentName, tempStudentPhoto);
           closeSheet();
       }
   };
@@ -104,6 +113,24 @@ export const StudentList: React.FC = () => {
       if(settingsStudent && confirm(`'${settingsStudent.name}' 학생을 삭제하시겠습니까? 되돌릴 수 없습니다.`)) {
           await deleteStudent(settingsStudent.id);
           closeSheet();
+      }
+  };
+
+  const handlePhotoClick = () => {
+      fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          try {
+              // Convert to base64 for local storage display immediately
+              // (In a real app with backend, we might upload here)
+              const base64 = await googleDriveService.fileToBase64(file);
+              setTempStudentPhoto(base64);
+          } catch (err) {
+              console.error("Failed to process image", err);
+          }
       }
   };
 
@@ -156,6 +183,7 @@ export const StudentList: React.FC = () => {
                                     isEditMode={isEditMode}
                                     onEdit={handleSettingsClick}
                                     onDelete={handleDeleteRequest}
+                                    onEnableEditMode={() => setIsEditMode(true)}
                                 />
                             );
                         })}
@@ -200,21 +228,33 @@ export const StudentList: React.FC = () => {
 
                   {/* Header Section: Avatar */}
                   <div className="mb-6 text-center">
-                      <div className="w-24 h-24 rounded-full bg-gray-100 mx-auto mb-3 overflow-hidden border-2 border-gray-100 relative group cursor-pointer shadow-inner">
+                      <div 
+                        onClick={handlePhotoClick}
+                        className="w-24 h-24 rounded-full bg-gray-100 mx-auto mb-3 overflow-hidden border-2 border-gray-100 relative group cursor-pointer shadow-inner"
+                      >
                           <img 
                             src={
-                                isAdding 
-                                ? `https://ui-avatars.com/api/?name=${encodeURIComponent(tempStudentName || 'New')}&background=random` 
-                                : settingsStudent?.photo_uri
+                                tempStudentPhoto || 
+                                (isAdding 
+                                    ? `https://ui-avatars.com/api/?name=${encodeURIComponent(tempStudentName || 'New')}&background=random` 
+                                    : settingsStudent?.photo_uri
+                                )
                             } 
                             alt="" 
                             className="w-full h-full object-cover" 
                           />
-                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                              <Camera size={24} className="text-white opacity-80" />
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity hover:bg-black/40">
+                              <Camera size={24} className="text-white opacity-90" />
                           </div>
                       </div>
                       <p className="text-xs text-gray-400 font-medium">사진을 터치하여 변경하세요</p>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileChange} 
+                        className="hidden" 
+                        accept="image/*"
+                      />
                   </div>
                   
                   {/* Name Input Section */}
@@ -243,7 +283,7 @@ export const StudentList: React.FC = () => {
                       )}
                       
                       <button 
-                        onClick={() => isAdding ? handleAddStudent() : handleUpdateStudentName()}
+                        onClick={() => isAdding ? handleAddStudent() : handleUpdateStudent()}
                         disabled={!tempStudentName.trim()}
                         className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                       >

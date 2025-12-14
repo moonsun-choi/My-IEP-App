@@ -171,12 +171,12 @@ class DatabaseService {
     return students;
   }
 
-  async addStudent(name: string): Promise<Student> {
+  async addStudent(name: string, photo_uri?: string): Promise<Student> {
     const students = await this.getStudents();
     const newStudent: Student = {
       id: generateUUID(),
       name,
-      photo_uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+      photo_uri: photo_uri || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
     };
     await this.setKeyVal('students', [...students, newStudent]);
     return newStudent;
@@ -187,7 +187,7 @@ class DatabaseService {
     const updated = students.map(s => s.id === id ? { 
         ...s, 
         name, 
-        photo_uri: photo_uri || s.photo_uri || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random` 
+        photo_uri: photo_uri || s.photo_uri 
     } : s);
     await this.setKeyVal('students', updated);
   }

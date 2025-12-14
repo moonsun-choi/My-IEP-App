@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, GripVertical, Trash2, Edit2, Target, PlayCircle, X } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
@@ -12,6 +11,7 @@ interface SortableStudentItemProps {
   isEditMode: boolean;
   onEdit: (student: Student) => void;
   onDelete: (student: Student) => void;
+  onEnableEditMode: () => void;
 }
 
 export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({ 
@@ -19,7 +19,8 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
     goals = [],
     isEditMode, 
     onEdit,
-    onDelete
+    onDelete,
+    onEnableEditMode
 }) => {
   const {
     attributes,
@@ -36,17 +37,34 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
 
   const navigate = useNavigate();
 
-  // --- Swipe Logic (Retained as backup, but UI focuses on X button now) ---
+  // --- Swipe & Long Press Logic ---
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchOffset, setTouchOffset] = useState(0);
+  const longPressTimer = useRef<any>(null);
   const minSwipeDistance = 80;
 
   const handleTouchStart = (e: React.TouchEvent) => {
-      if (!isEditMode) return;
-      setTouchStart(e.targetTouches[0].clientX);
+      // Long Press Detection (for triggering edit mode)
+      if (!isEditMode) {
+          longPressTimer.current = setTimeout(() => {
+              if (navigator.vibrate) navigator.vibrate(50);
+              onEnableEditMode();
+          }, 500); // 500ms long press
+      }
+
+      // Swipe Start (only in edit mode)
+      if (isEditMode) {
+        setTouchStart(e.targetTouches[0].clientX);
+      }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+      // Cancel long press on move
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+
       if (!isEditMode || touchStart === null) return;
       const currentX = e.targetTouches[0].clientX;
       const diff = currentX - touchStart;
@@ -58,14 +76,37 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
   };
 
   const handleTouchEnd = () => {
+      // Cancel long press
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+
       if (!isEditMode || touchStart === null) return;
       
-      if (touchOffset < -minSwipeDistance) {
+      // Swipe Right -> Edit
+      if (touchOffset > minSwipeDistance) {
+          onEdit(student);
+      } 
+      // Swipe Left -> Delete
+      else if (touchOffset < -minSwipeDistance) {
           onDelete(student);
       }
       
       setTouchStart(null);
       setTouchOffset(0); // Snap back
+  };
+
+  // Mouse equivalents for desktop long-press testing
+  const handleMouseDown = () => {
+    if (!isEditMode) {
+        longPressTimer.current = setTimeout(() => {
+            onEnableEditMode();
+        }, 500);
+    }
+  };
+  const handleMouseUp = () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current);
   };
 
   const style = {
@@ -79,21 +120,27 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
       if (isDragging) return;
       
       // Logic Change: 
-      // Edit Mode -> Open Settings Sheet (formerly handled by onSettings)
+      // Edit Mode -> No action on click (swipe to action)
       // Normal Mode -> Navigate to Detail
-      if (isEditMode) {
-          onEdit(student);
-      } else {
+      if (!isEditMode) {
           navigate(`/student/${student.id}`);
       }
   };
 
   return (
     <div className="relative group touch-none mb-1">
-      {/* Background Actions (Swipe Reveal) - Only Delete is relevant for swipe now */}
+      {/* Background Actions (Swipe Reveal) */}
       {isEditMode && (
          <div className="absolute inset-0 rounded-2xl flex overflow-hidden shadow-inner bg-gray-100">
-             <div className="flex-1" /> {/* Spacer */}
+             {/* Left Reveal (Blue for Edit) */}
+             <div 
+                className="flex-1 bg-blue-500 flex items-center justify-start pl-6 text-white transition-opacity duration-200"
+                style={{ opacity: touchOffset > 0 ? Math.min(touchOffset / 60, 1) : 0 }}
+             >
+                 <Edit2 size={24} />
+             </div>
+             
+             {/* Right Reveal (Red for Delete) */}
              <div 
                 className="flex-1 bg-red-500 flex items-center justify-end pr-6 text-white transition-opacity duration-200"
                 style={{ opacity: touchOffset < 0 ? Math.min(Math.abs(touchOffset) / 60, 1) : 0 }}
@@ -114,6 +161,9 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
         
         className={`
           relative p-4 rounded-2xl flex items-center gap-4 transition-all touch-none select-none overflow-hidden
@@ -175,20 +225,6 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
                </div>
           </div>
         </div>
-
-        {/* Delete Button (Red X) - Visible ONLY in Edit Mode */}
-        {isEditMode && (
-            <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(student);
-                }}
-                className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full shadow-md hover:bg-red-600 active:scale-95 transition-all z-20"
-                aria-label="Delete Student"
-            >
-                <X size={14} strokeWidth={3} />
-            </button>
-        )}
       </div>
     </div>
   );
