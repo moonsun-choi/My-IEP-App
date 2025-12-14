@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { App } from '@capacitor/app';
+import { App, BackButtonListenerEvent } from '@capacitor/app';
 
 export const useBackExit = () => {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -10,7 +10,7 @@ export const useBackExit = () => {
     // 1. Native Environment (Android/iOS via Capacitor)
     if (Capacitor.isNativePlatform()) {
         const setupNativeListener = async () => {
-            const listener = await App.addListener('backButton', (data) => {
+            const listener = await App.addListener('backButton', (data: BackButtonListenerEvent) => {
                 // If the modal is already open, close it (toggle behavior)
                 // If closed, open it to confirm exit
                 setShowExitConfirm(prev => {

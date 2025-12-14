@@ -50,7 +50,7 @@ class DatabaseService {
 
   private async init() {
     const db = await openDB<IEPDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db: IDBPDatabase<IEPDB>) {
         // 1. Logs Store (Individual records for scalability)
         const logStore = db.createObjectStore('logs', { keyPath: 'id' });
         logStore.createIndex('by-goal', 'goal_id');
