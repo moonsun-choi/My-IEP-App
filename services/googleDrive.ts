@@ -177,6 +177,41 @@ export const googleDriveService = {
     if (onInitCallback) onInitCallback();
   },
 
+  // Attempt to restore session from localStorage (Web)
+  restoreSession: async (): Promise<any> => {
+      // Native platforms usually persist session via the plugin automatically or require different handling.
+      // This implementation targets the Web "Refresh" scenario.
+      if (Capacitor.isNativePlatform()) return null;
+
+      const token = localStorage.getItem('google_access_token');
+      const expiry = localStorage.getItem('google_token_expiry');
+      
+      if (!token || !expiry) return null;
+
+      // Check if expired
+      if (Date.now() > parseInt(expiry, 10)) {
+          localStorage.removeItem('google_access_token');
+          localStorage.removeItem('google_token_expiry');
+          return null;
+      }
+
+      // Restore to GAPI
+      if (window.gapi && window.gapi.client) {
+          window.gapi.client.setToken({ access_token: token });
+          
+          // Verify token validity by fetching profile
+          const user = await googleDriveService.getUserInfo();
+          if (user) {
+              return user;
+          } else {
+              // Token invalid or revoked
+              localStorage.removeItem('google_access_token');
+              localStorage.removeItem('google_token_expiry');
+          }
+      }
+      return null;
+  },
+
   // Trigger Google Login
   login: async (): Promise<string> => {
     // --- NATIVE LOGIN ---
@@ -235,7 +270,15 @@ export const googleDriveService = {
           reject(resp);
           return;
         }
-        resolve(resp.access_token);
+        
+        // Save Token for Persistence (Web)
+        const token = resp.access_token;
+        const expiresIn = resp.expires_in || 3599;
+        localStorage.setItem('google_access_token', token);
+        // Set expiry slightly earlier than actual to be safe
+        localStorage.setItem('google_token_expiry', (Date.now() + (expiresIn * 1000) - 60000).toString());
+
+        resolve(token);
       };
 
       try {
@@ -267,6 +310,10 @@ export const googleDriveService = {
 
   // Sign Out
   signOut: async () => {
+      // Clear Local Storage
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_token_expiry');
+
       // 1. Native Sign Out
       if (Capacitor.isNativePlatform()) {
           try {

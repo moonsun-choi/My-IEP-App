@@ -43,8 +43,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     // 1. Init Google Drive
     const initDrive = async () => {
         try {
-            await googleDriveService.init(() => {
+            await googleDriveService.init(async () => {
                 setIsGoogleScriptReady(true);
+                
+                // Attempt to restore session on refresh
+                const restoredUser = await googleDriveService.restoreSession();
+                if (restoredUser) {
+                     setUser({
+                        name: restoredUser.name,
+                        email: restoredUser.email,
+                        picture: restoredUser.picture
+                    });
+                    setLoggedIn(true);
+                    // toast.success("로그인 상태 복구됨", { id: 'restore-login' });
+                }
             });
         } catch (err) {
             console.log("Initial Google service load failed:", err);
