@@ -1,0 +1,282 @@
+import React, { useEffect, useState, useMemo } from 'react';
+import { useStore } from '../store/useStore';
+import { ObservationLog, PromptLevel, MeasurementType } from '../types';
+import { History, X, Filter, CheckSquare, Paperclip, MessageSquare, ClipboardX, Plus } from 'lucide-react';
+import { QuickRecordSheet } from '../components/QuickRecordSheet';
+import { LogCard } from '../components/LogCard';
+import { StudentGoalSelector } from '../components/StudentGoalSelector';
+
+export const DailyData: React.FC = () => {
+  const { students, goals, logs, fetchStudents, fetchGoals, fetchLogs, recordTrial, deleteLog, updateLog } = useStore();
+  
+  const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [selectedGoalId, setSelectedGoalId] = useState<string>('');
+  
+  // Sheet State
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<ObservationLog | null>(null);
+
+  // History Modal State
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyFilterMedia, setHistoryFilterMedia] = useState(false);
+  const [historyFilterNotes, setHistoryFilterNotes] = useState(false);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  useEffect(() => {
+    if (students.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(students[0].id);
+    }
+  }, [students, selectedStudentId]);
+
+  useEffect(() => {
+    if (selectedStudentId) {
+      fetchGoals(selectedStudentId);
+      setSelectedGoalId(''); 
+    }
+  }, [selectedStudentId, fetchGoals]);
+
+  useEffect(() => {
+    if (goals.length > 0 && !selectedGoalId) {
+      setSelectedGoalId(goals[0].id);
+    }
+  }, [goals, selectedGoalId]);
+
+  useEffect(() => {
+    if (selectedGoalId) {
+      fetchLogs(selectedGoalId);
+    }
+  }, [selectedGoalId, fetchLogs]);
+
+  const currentStudent = students.find(s => s.id === selectedStudentId);
+  const currentGoal = goals.find(g => g.id === selectedGoalId);
+
+  const stats = useMemo(() => {
+    const total = logs.length;
+    const accLogs = logs.filter(l => l.measurementType === 'accuracy' || !l.measurementType);
+    const avgAccuracy = accLogs.length > 0 
+        ? Math.round(accLogs.reduce((acc, l) => acc + (l.value || l.accuracy || 0), 0) / accLogs.length) 
+        : 0;
+    
+    return { total, avgAccuracy };
+  }, [logs]);
+
+  // Main list logs (Always sorted by time)
+  const sortedLogs = useMemo(() => {
+    return [...logs].sort((a, b) => b.timestamp - a.timestamp);
+  }, [logs]);
+
+  // Filtered Logs for History Modal
+  const filteredHistoryLogs = useMemo(() => {
+      let data = [...sortedLogs];
+      if (historyFilterMedia) {
+          data = data.filter(l => !!l.media_uri);
+      }
+      if (historyFilterNotes) {
+          data = data.filter(l => !!l.notes && l.notes.trim().length > 0);
+      }
+      return data;
+  }, [sortedLogs, historyFilterMedia, historyFilterNotes]);
+
+  // Show only top 5 logs in the main view
+  const recentLogs = sortedLogs.slice(0, 5);
+
+  const handleOpenRecordSheet = () => {
+    setEditingLog(null);
+    setIsSheetOpen(true);
+  };
+
+  const handleEditLog = (log: ObservationLog) => {
+    setEditingLog(log);
+    setIsSheetOpen(true);
+  };
+
+  const handleSheetSave = async (type: MeasurementType, value: number, promptLevel: PromptLevel, timestamp?: number, mediaUri?: string, notes?: string) => {
+    if (!selectedGoalId) return;
+
+    if (editingLog) {
+        await updateLog(editingLog.id, selectedGoalId, type, value, promptLevel, timestamp || editingLog.timestamp, mediaUri, notes);
+    } else {
+        await recordTrial(selectedGoalId, type, value, promptLevel, mediaUri, notes);
+    }
+  };
+
+  const handleSheetDelete = async () => {
+    if (editingLog && selectedGoalId) {
+        await deleteLog(editingLog.id, selectedGoalId);
+        setIsSheetOpen(false);
+        setIsHistoryOpen(false); // Close history if editing from there
+    }
+  };
+
+  if (!currentStudent) return <div className="p-8 text-center text-gray-500">데이터 로딩 중...</div>;
+
+  return (
+    <div className="p-4 md:p-8 space-y-4 md:space-y-6 pb-24 relative min-h-[calc(100vh-80px)] max-w-4xl mx-auto w-full">
+      
+      {/* Selectors */}
+      <StudentGoalSelector 
+        students={students}
+        goals={goals}
+        selectedStudentId={selectedStudentId}
+        selectedGoalId={selectedGoalId}
+        onSelectStudent={setSelectedStudentId}
+        onSelectGoal={setSelectedGoalId}
+        currentStudent={currentStudent}
+      />
+
+      {/* Simplified Info Text instead of Card */}
+      {!currentGoal && (
+          <div className="text-center text-gray-400 text-sm py-4">기록을 시작하려면 목표를 선택하세요.</div>
+      )}
+
+      {/* Stats Cards - Responsive Grid */}
+      <div className="grid grid-cols-2 gap-3 md:gap-6">
+          <div className="bg-indigo-50 p-5 rounded-2xl flex flex-col items-center justify-center border border-indigo-100">
+              <span className="text-xs text-indigo-500 font-bold mb-1 uppercase tracking-wide">평균 수행도</span>
+              <span className="text-4xl font-black text-indigo-700">
+                  {stats.avgAccuracy}<span className="text-2xl">%</span>
+              </span>
+          </div>
+          <div className="bg-white p-5 rounded-2xl flex flex-col items-center justify-center border border-gray-200 shadow-sm">
+              <span className="text-xs text-gray-500 font-bold mb-1 uppercase tracking-wide">총 시도</span>
+              <span className="text-4xl font-black text-gray-700">{stats.total}<span className="text-2xl">회</span></span>
+          </div>
+      </div>
+
+      <div className="mt-8">
+        <div className="flex justify-between items-center mb-4 px-1">
+            <h3 className="text-lg font-bold text-gray-800">최근 기록</h3>
+            {sortedLogs.length > 5 && (
+                <button 
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                >
+                    <History size={16} />
+                    <span>전체 보기 ({sortedLogs.length})</span>
+                </button>
+            )}
+        </div>
+        
+        <div className="space-y-3 pb-20">
+            {recentLogs.length === 0 && (
+                <div className="text-center text-gray-400 py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <ClipboardX size={32} className="mx-auto mb-4 opacity-30" />
+                    <p className="text-sm">
+                        아직 기록이 없습니다.<br/>
+                        하단 버튼을 눌러 기록을 시작하세요.
+                    </p>
+                </div>
+            )}
+            {recentLogs.map((log) => (
+                <LogCard key={log.id} log={log} onClick={handleEditLog} />
+            ))}
+            
+            {sortedLogs.length > 5 && (
+                 <button 
+                    onClick={() => setIsHistoryOpen(true)}
+                    className="w-full py-4 text-center text-gray-500 font-bold text-sm hover:text-indigo-600 transition-colors bg-white rounded-xl border border-gray-100 shadow-sm"
+                 >
+                     + {sortedLogs.length - 5}개 기록 더 보기
+                 </button>
+            )}
+        </div>
+      </div>
+
+      {selectedGoalId && (
+          <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-30">
+            <button 
+                onClick={handleOpenRecordSheet}
+                className="bg-indigo-600 text-white font-bold p-4 md:px-6 md:py-4 rounded-full shadow-xl shadow-indigo-200 flex items-center justify-center gap-2 hover:bg-indigo-700 transition-transform hover:scale-105 active:scale-95"
+            >
+                <Plus size={24} strokeWidth={3} />
+                <span className="hidden md:inline">기록하기</span>
+            </button>
+          </div>
+      )}
+
+      {/* Full History Modal (Separate Window) */}
+      {isHistoryOpen && (
+          <div className="fixed inset-0 bg-white z-50 flex flex-col animate-slide-up">
+              {/* Modal Header */}
+              <div className="p-4 border-b border-gray-100 bg-white shrink-0">
+                  <div className="flex justify-between items-center mb-4">
+                      <div>
+                          <h2 className="text-lg font-bold text-gray-800">기록 히스토리</h2>
+                          <p className="text-xs text-gray-500">
+                             {filteredHistoryLogs.length} / {sortedLogs.length}건
+                          </p>
+                      </div>
+                      <button onClick={() => setIsHistoryOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200">
+                          <X size={24} />
+                      </button>
+                  </div>
+                  
+                  {/* Filters */}
+                  <div className="flex gap-2">
+                        <button 
+                            onClick={() => setHistoryFilterMedia(!historyFilterMedia)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
+                                historyFilterMedia 
+                                ? 'bg-indigo-50 text-indigo-600 border-indigo-200 ring-1 ring-indigo-200' 
+                                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            }`}
+                        >
+                            <Paperclip size={14} strokeWidth={2.5} />
+                            <span>미디어 포함</span>
+                            {historyFilterMedia && <CheckSquare size={12} />}
+                        </button>
+                        <button 
+                            onClick={() => setHistoryFilterNotes(!historyFilterNotes)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
+                                historyFilterNotes 
+                                ? 'bg-orange-50 text-orange-600 border-orange-200 ring-1 ring-orange-200' 
+                                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            }`}
+                        >
+                            <MessageSquare size={14} strokeWidth={2.5} />
+                            <span>메모 포함</span>
+                            {historyFilterNotes && <CheckSquare size={12} />}
+                        </button>
+                  </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
+                  <div className="max-w-3xl mx-auto space-y-3">
+                    {filteredHistoryLogs.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                            <Filter size={40} className="mb-2 opacity-20" />
+                            <p className="text-sm">조건에 맞는 기록이 없습니다.</p>
+                        </div>
+                    ) : (
+                        filteredHistoryLogs.map((log) => (
+                             <LogCard key={log.id} log={log} onClick={handleEditLog} />
+                        ))
+                    )}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      <QuickRecordSheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        onSave={handleSheetSave}
+        onDelete={editingLog ? handleSheetDelete : undefined}
+        goalTitle={currentGoal?.title || ''}
+        
+        initialType={editingLog?.measurementType || 'accuracy'}
+        initialValue={editingLog?.value}
+        
+        initialPromptLevel={editingLog ? editingLog.promptLevel : 'verbal'}
+        initialTimestamp={editingLog?.timestamp}
+        initialMediaUri={editingLog?.media_uri}
+        initialNotes={editingLog?.notes}
+        isEditing={!!editingLog}
+      />
+    </div>
+  );
+};

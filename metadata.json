@@ -1,0 +1,7 @@
+{
+  "name": "My-IEP-App",
+  "description": "특수교사를 위한 IEP(개별화교육계획) 목표 추적 및 학생 성장 기록 모바일 웹 애플리케이션입니다.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
