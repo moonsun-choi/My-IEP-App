@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, GripVertical, Trash2, Edit2, Target, PlayCircle, X } from 'lucide-react';
@@ -120,10 +121,12 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
       if (isDragging) return;
       
       // Logic Change: 
-      // Edit Mode -> No action on click (swipe to action)
+      // Edit Mode -> Open Edit Sheet
       // Normal Mode -> Navigate to Detail
       if (!isEditMode) {
           navigate(`/student/${student.id}`);
+      } else {
+          onEdit(student);
       }
   };
 
@@ -168,7 +171,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
         className={`
           relative p-4 rounded-2xl flex items-center gap-4 transition-all touch-none select-none overflow-hidden
           ${isEditMode 
-            ? 'bg-white border-2 border-indigo-500 shadow-md' // Edit Mode: Strong Border + Shadow
+            ? 'bg-white border-2 border-indigo-500 shadow-md cursor-pointer' // Edit Mode: Strong Border + Shadow + Pointer
             : 'bg-white border border-gray-100 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]' // Normal Mode
           }
           ${isDragging ? 'shadow-2xl scale-105 z-50 ring-4 ring-indigo-200' : ''}
