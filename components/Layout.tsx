@@ -107,6 +107,27 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               </div>
           );
       }
+
+      // Check Configuration Status
+      if (!googleDriveService.isConfigured()) {
+          return (
+              <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
+                  <div className="flex items-center gap-2 text-amber-700 mb-2">
+                      <AlertTriangle size={14} />
+                      <span className="text-xs font-bold">설정 필요</span>
+                  </div>
+                  <p className="text-[10px] text-amber-600/80 leading-tight mb-2">
+                      Google Drive 동기화를 위해 API 키 설정이 필요합니다.
+                  </p>
+                  <button 
+                    onClick={() => toast.error("VITE_GOOGLE_CLIENT_ID 및 API_KEY 환경변수가 설정되지 않았습니다.")}
+                    className="w-full bg-white text-amber-600 py-2 rounded-lg text-xs font-bold border border-amber-200 hover:bg-amber-50 transition-colors"
+                  >
+                      설정 확인
+                  </button>
+              </div>
+          );
+      }
       
       if (!isLoggedIn) {
           return (

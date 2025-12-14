@@ -265,6 +265,12 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 set({ isLoading: true }); // Show loading during upload
                 try {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
+                    // Check if fallback failed due to size limit
+                    if (finalUri === "") {
+                        toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
+                        set({ isLoading: false });
+                        return; // Abort
+                    }
                 } catch (e) {
                     console.error("Failed to upload media", e);
                     toast.error("미디어 업로드 실패. 네트워크를 확인해주세요.");
@@ -299,6 +305,12 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 set({ isLoading: true });
                 try {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
+                    // Check if fallback failed due to size limit
+                    if (finalUri === "") {
+                        toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
+                        set({ isLoading: false });
+                        return; // Abort
+                    }
                 } catch (e) {
                     console.error("Failed to upload media", e);
                     toast.error("미디어 업로드 실패");

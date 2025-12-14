@@ -106,6 +106,15 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     }
   }, [isOpen, isEditing, initialValue, initialPromptLevel, initialTimestamp, initialMediaUri, initialNotes]);
 
+  // Cleanup object URLs to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (mediaPreview && mediaPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(mediaPreview);
+      }
+    };
+  }, [mediaPreview]);
+
   const handleSave = () => {
     if (isLoading) return; // Prevent double click
     
@@ -126,13 +135,12 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     if (file) {
       setMediaFile(file); // Store the file for upload
       
-      // Create local preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMediaPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      // OPTIMIZED: Use createObjectURL instead of FileReader for large files (prevents mobile crash)
+      const objectUrl = URL.createObjectURL(file);
+      setMediaPreview(objectUrl);
     }
+    // Allow re-selecting the same file if needed
+    if (e.target) e.target.value = '';
   };
 
   const clearMedia = () => {
@@ -143,7 +151,9 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
 
   if (!isOpen) return null;
 
-  const isVideo = mediaFile ? mediaFile.type.startsWith('video/') : mediaPreview?.startsWith('data:video') || mediaPreview?.includes('.mp4');
+  const isVideo = mediaFile 
+    ? mediaFile.type.startsWith('video/') 
+    : (mediaPreview?.startsWith('data:video') || mediaPreview?.includes('.mp4') || mediaPreview?.includes('video'));
 
   return (
     <>
