@@ -18,12 +18,16 @@ interface ExtendedAppState extends AppState {
     // Sync related state
     isOnline: boolean;
     isLoggedIn: boolean;
+    user: { name: string; email: string; picture: string } | null; // User Profile
     syncStatus: 'idle' | 'syncing' | 'saved' | 'error' | 'cloud_newer';
     lastSyncTime: number;
 
     // Sync Actions
     setOnlineStatus: (isOnline: boolean) => void;
     setLoggedIn: (isLoggedIn: boolean) => void;
+    setUser: (user: any) => void; // Set User Profile
+    logout: () => Promise<void>; // Logout Action
+    
     checkCloudStatus: () => Promise<void>;
     syncLocalToCloud: () => Promise<void>;
     syncCloudToLocal: () => Promise<void>;
@@ -63,12 +67,12 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         // Sync State
         isOnline: navigator.onLine,
         isLoggedIn: false,
+        user: null,
         syncStatus: 'idle',
         lastSyncTime: 0,
 
         setOnlineStatus: (isOnline) => {
             set({ isOnline });
-            // If we came back online and are logged in, try to sync pending changes
             if (isOnline && get().isLoggedIn) {
                 get().syncLocalToCloud();
             }
@@ -81,6 +85,25 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             }
         },
 
+        setUser: (user) => {
+            set({ user });
+        },
+
+        logout: async () => {
+            try {
+                await googleDriveService.signOut();
+                set({ 
+                    isLoggedIn: false, 
+                    user: null, 
+                    syncStatus: 'idle' 
+                });
+                toast.success("로그아웃 되었습니다.");
+            } catch (e) {
+                console.error("Logout failed", e);
+                toast.error("로그아웃 실패");
+            }
+        },
+
         checkCloudStatus: async () => {
             if (!get().isLoggedIn || !get().isOnline) return;
             try {
@@ -88,7 +111,6 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 if (metadata) {
                     const cloudTime = new Date(metadata.modifiedTime).getTime();
                     const localLastSync = await db.getLastSyncTime();
-                    // If cloud is significantly newer (> 5 seconds buffer) than last sync
                     if (cloudTime > localLastSync + 5000) {
                         set({ syncStatus: 'cloud_newer' });
                     }
@@ -125,11 +147,9 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     const now = Date.now();
                     await db.setLastSyncTime(now);
                     
-                    // Refresh all data
                     await get().fetchStudents();
                     await get().fetchAllGoals();
                     await get().fetchWidgets();
-                    // Refresh logs if a student is selected (context dependent, but good to ensure consistency)
                     
                     set({ syncStatus: 'idle', lastSyncTime: now });
                     toast.success("데이터 복원 완료");
@@ -264,22 +284,20 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         recordTrial: async (goalId: string, value: number, promptLevel: PromptLevel, mediaUri?: string | File, notes?: string) => {
             let finalUri: string | undefined = undefined;
             
-            // Check if mediaUri is actually a File object
             if (mediaUri instanceof File) {
-                set({ isLoading: true }); // Show loading during upload
+                set({ isLoading: true });
                 try {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
-                    // Check if fallback failed due to size limit
                     if (finalUri === "") {
                         toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
                         set({ isLoading: false });
-                        return; // Abort
+                        return;
                     }
                 } catch (e) {
                     console.error("Failed to upload media", e);
                     toast.error("미디어 업로드 실패. 네트워크를 확인해주세요.");
                     set({ isLoading: false });
-                    return; // Exit function
+                    return;
                 } finally {
                     set({ isLoading: false });
                 }
@@ -287,7 +305,6 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 finalUri = mediaUri;
             }
 
-            // Always use 'accuracy' as type
             await db.addLog(goalId, value, promptLevel, finalUri, notes);
             await get().fetchLogs(goalId);
             markDirty();
@@ -304,22 +321,20 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         updateLog: async (logId: string, goalId: string, value: number, promptLevel: PromptLevel, timestamp: number, mediaUri?: string | File, notes?: string) => {
             let finalUri: string | undefined = undefined;
 
-            // Check if mediaUri is a new File object
             if (mediaUri instanceof File) {
                 set({ isLoading: true });
                 try {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
-                    // Check if fallback failed due to size limit
                     if (finalUri === "") {
                         toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
                         set({ isLoading: false });
-                        return; // Abort
+                        return;
                     }
                 } catch (e) {
                     console.error("Failed to upload media", e);
                     toast.error("미디어 업로드 실패");
                     set({ isLoading: false });
-                    return; // Exit function
+                    return;
                 } finally {
                     set({ isLoading: false });
                 }

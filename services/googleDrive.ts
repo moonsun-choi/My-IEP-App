@@ -79,22 +79,19 @@ export const googleDriveService = {
     // --- NATIVE PLATFORM INITIALIZATION ---
     if (Capacitor.isNativePlatform()) {
         // 1. Initialize Plugin IMMEDIATELY (Before network calls)
-        // This ensures GoogleAuth is ready even if GAPI fails to load due to network.
         try {
             console.log("Initializing Native Google Auth...");
             GoogleAuth.initialize({
                 clientId: CLIENT_ID, // Use WEB Client ID here
                 scopes: ['https://www.googleapis.com/auth/drive.file'],
-                grantOfflineAccess: false, // False ensures we get a direct accessToken for GAPI
+                grantOfflineAccess: false, 
             });
         } catch (e) {
             console.error("GoogleAuth.initialize failed:", e);
-            // We continue, as it might be configured via capacitor.config.json
         }
 
         try {
             // 2. Load GAPI (Needed for Drive API calls)
-            // We treat this separately so auth init doesn't fail if network is flaky
             await loadScript('https://apis.google.com/js/api.js');
             await new Promise<void>((resolve) => window.gapi.load('client', resolve));
             
@@ -112,7 +109,6 @@ export const googleDriveService = {
 
         } catch (e) {
             console.error("Native GAPI Init Error (Check Network):", e);
-            // Propagate error so UI knows we are not fully ready (e.g. offline)
             throw e;
         }
     }
@@ -186,7 +182,6 @@ export const googleDriveService = {
     // --- NATIVE LOGIN ---
     if (Capacitor.isNativePlatform()) {
         try {
-            // Force initialization again just in case (safe to call multiple times)
              GoogleAuth.initialize({
                 clientId: CLIENT_ID,
                 scopes: ['https://www.googleapis.com/auth/drive.file'],
@@ -200,9 +195,7 @@ export const googleDriveService = {
             if (!accessToken) throw new Error("No Access Token received from Native Login");
             
             // Bridge: Inject token into GAPI
-            // Ensure GAPI is loaded before setting token
             if (!window.gapi || !window.gapi.client) {
-                // Try to load GAPI if it was missed (e.g. offline init)
                 await loadScript('https://apis.google.com/js/api.js');
                 await new Promise<void>((resolve) => window.gapi.load('client', resolve));
             }
@@ -212,7 +205,6 @@ export const googleDriveService = {
 
         } catch (e: any) {
             console.error("Native Login Error:", e);
-            // '10' is a common error for SHA-1 mismatch or config issues
             if (JSON.stringify(e).includes("10")) {
                 throw new Error("Google Cloud 설정(SHA-1) 또는 Client ID를 확인해주세요. (Error 10)");
             }
@@ -221,7 +213,6 @@ export const googleDriveService = {
     }
 
     // --- WEB LOGIN (Existing) ---
-    // Wait until ready if called too early
     if (!tokenClient && googleDriveService.isConfigured()) {
         if (!gisInited) {
             throw new Error("Google 서비스 초기화 중입니다. 잠시 후 다시 시도해주세요.");
@@ -255,6 +246,49 @@ export const googleDriveService = {
     });
   },
 
+  // Get User Profile Info
+  getUserInfo: async (): Promise<any> => {
+      // For Native, we rely on the token being valid in GAPI or just fetch from endpoint
+      const token = window.gapi?.client?.getToken()?.access_token;
+      if (!token) return null;
+
+      try {
+          const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+              return await res.json();
+          }
+      } catch (e) {
+          console.error("Failed to fetch user info", e);
+      }
+      return null;
+  },
+
+  // Sign Out
+  signOut: async () => {
+      // 1. Native Sign Out
+      if (Capacitor.isNativePlatform()) {
+          try {
+              await GoogleAuth.signOut();
+          } catch (e) {
+              console.warn("Native sign out error", e);
+          }
+      }
+
+      // 2. Clear Web Session (Revoke if possible, or just clear token)
+      // Revoking token on web is good practice if we want to force re-consent or clear session on Google side for this app
+      const token = window.gapi?.client?.getToken()?.access_token;
+      if (token && window.google?.accounts?.oauth2) {
+          // window.google.accounts.oauth2.revoke(token, () => {}); // Optional: Revoke permission
+      }
+
+      // 3. Clear GAPI Token
+      if (window.gapi?.client) {
+          window.gapi.client.setToken(null);
+      }
+  },
+
   // Check if backup file exists and return its metadata
   getBackupMetadata: async (): Promise<{ id: string, modifiedTime: string } | null> => {
       if (!googleDriveService.isConfigured() || !window.gapi?.client?.getToken()) return null;
@@ -285,7 +319,6 @@ export const googleDriveService = {
     }
 
     try {
-        // 1. Search for existing file
         const q = `name = '${BACKUP_FILE_NAME}' and trashed = false`;
         const response = await window.gapi.client.drive.files.list({ q, fields: 'files(id, name)' });
         const files = response.result.files;
@@ -303,7 +336,6 @@ export const googleDriveService = {
         form.append('file', fileContent);
 
         if (files && files.length > 0) {
-            // Update existing
             const fileId = files[0].id;
             await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
                 method: 'PATCH',
@@ -311,7 +343,6 @@ export const googleDriveService = {
                 body: form
             });
         } else {
-            // Create new
             await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                 method: 'POST',
                 headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
@@ -350,8 +381,6 @@ export const googleDriveService = {
     return null;
   },
 
-  // --- Media Upload Helpers ---
-
   // Helper: Get or Create 'MyIEP_Media' folder
   ensureMediaFolder: async (): Promise<string> => {
     const q = `name = '${MEDIA_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
@@ -373,11 +402,9 @@ export const googleDriveService = {
   // Helper: Convert File to Base64 (Safe for large files check)
   fileToBase64: (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-        // Prevent crashing browser with massive files in Base64
-        // Limit to ~20MB for local Base64 storage
         if (file.size > 20 * 1024 * 1024) { 
             console.warn("File too large for local Base64 storage");
-            resolve(""); // Return empty string instead of rejecting to allow log save
+            resolve(""); 
             return;
         }
 
@@ -390,9 +417,6 @@ export const googleDriveService = {
 
   // Upload Media File (Image/Video)
   uploadMedia: async (file: File): Promise<string | undefined> => {
-    // 1. Check if we have a valid token. 
-    // If user refreshed page, gapi token is gone. We cannot upload to Drive.
-    // We must fallback to local storage or skip.
     const token = window.gapi?.client?.getToken();
     const hasToken = googleDriveService.isConfigured() && !!token;
 
@@ -420,7 +444,6 @@ export const googleDriveService = {
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', file);
 
-        // Upload
         const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webContentLink,webViewLink', {
             method: 'POST',
             headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
@@ -435,7 +458,6 @@ export const googleDriveService = {
         const data = await res.json();
         const fileId = data.id;
 
-        // Try to get a viewable link
         try {
             const getFileRes = await window.gapi.client.drive.files.get({
                 fileId: fileId,
@@ -443,18 +465,16 @@ export const googleDriveService = {
             });
             return getFileRes.result.webContentLink || getFileRes.result.thumbnailLink || "";
         } catch (e) {
-            // If getting link fails, try constructing one or just return ID (context dependent)
              return `https://drive.google.com/file/d/${fileId}/view`;
         }
 
     } catch (e) {
         console.error("Upload error (Falling back to local):", e);
-        // Fallback on API error (e.g. Network, Quota, Auth)
         try {
             return await googleDriveService.fileToBase64(file);
         } catch (innerE) {
             console.error("Fallback Base64 failed:", innerE);
-            return undefined; // Return undefined so log is saved without media rather than crashing
+            return undefined; 
         }
     }
   }

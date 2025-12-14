@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen, CloudOff, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen, CloudOff, AlertTriangle, RefreshCw, LogOut, User as UserIcon, MoreVertical } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
 import toast from 'react-hot-toast';
@@ -16,26 +16,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isScriptSlow, setIsScriptSlow] = useState(false);
   
   const location = useLocation();
-  const { isLoggedIn, isOnline, syncStatus, setLoggedIn, setOnlineStatus, syncCloudToLocal, syncLocalToCloud } = useStore();
+  const { 
+    isLoggedIn, isOnline, syncStatus, user,
+    setLoggedIn, setOnlineStatus, setUser, logout,
+    syncCloudToLocal, syncLocalToCloud 
+  } = useStore();
 
   useEffect(() => {
     // 1. Init Google Drive
-    
-    // Set a longer timeout for mobile networks
     const slowTimer = setTimeout(() => {
         if (!isGoogleScriptReady) setIsScriptSlow(true);
-    }, 15000); // Increased to 15 seconds
+    }, 15000); 
 
     const initDrive = async () => {
         try {
             await googleDriveService.init(() => {
                 setIsGoogleScriptReady(true);
                 setIsScriptSlow(false);
-                console.log("Google Service Initialized");
             });
         } catch (err) {
-            console.log("Initial Google service load failed (will retry on user interaction):", err);
-            // Don't show toast on initial load, just let the button state reflect it
+            console.log("Initial Google service load failed:", err);
         }
     };
     initDrive();
@@ -62,7 +62,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
         if (syncStatus === 'syncing') {
             e.preventDefault();
-            e.returnValue = '데이터 동기화 중입니다. 앱을 종료하면 변경사항이 저장되지 않을 수 있습니다.';
+            e.returnValue = '데이터 동기화 중입니다.';
         }
     };
 
@@ -84,44 +84,42 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       // 1. Retry Script Init if needed
       if (!isGoogleScriptReady) {
           const loadingId = toast.loading("Google 서비스 연결 재시도 중...", { id: 'retry-loading' });
-          
           try {
             await googleDriveService.init(() => {
                 setIsGoogleScriptReady(true);
                 setIsScriptSlow(false);
             });
             toast.dismiss(loadingId);
-            // Proceed to login below...
           } catch (e) {
             toast.dismiss(loadingId);
-            toast.error("연결에 실패했습니다. 네트워크를 확인해주세요.", { 
-                id: 'retry-error', 
-                duration: 3000 // Auto dismiss after 3s
-            });
+            toast.error("연결에 실패했습니다.", { id: 'retry-error', duration: 3000 });
             return;
           }
       }
 
       // 2. Perform Login
       try {
-          // Clear any previous toasts
           toast.dismiss();
           await googleDriveService.login();
+          
+          // Fetch Profile
+          const userInfo = await googleDriveService.getUserInfo();
+          if (userInfo) {
+              setUser({
+                  name: userInfo.name,
+                  email: userInfo.email,
+                  picture: userInfo.picture
+              });
+          }
+          
           setLoggedIn(true);
           toast.success("Google 로그인 성공", { duration: 3000 });
       } catch (e: any) {
           console.error("Login Failed:", e);
-          
           if (e.message === "Configuration missing") {
-              toast.error("Google API 설정이 누락되었습니다", { duration: 3000 });
-          } else if (e.message?.includes("not initialized") || e.message?.includes("로딩 중")) {
-              // Should not happen often due to step 1, but just in case
-              toast.error("서비스 준비 중입니다. 잠시 후 다시 시도해주세요.", { duration: 3000 });
-              googleDriveService.init().catch(() => {});
-          } else if (e.type === 'popup_blocked_by_browser') {
-              toast.error("브라우저 팝업이 차단되었습니다", { duration: 3000 });
+              toast.error("API 키 설정이 필요합니다", { duration: 3000 });
           } else {
-              toast.error("로그인 중 오류가 발생했습니다. 다시 시도해주세요.", { duration: 3000 });
+              toast.error("로그인 중 오류가 발생했습니다.", { duration: 3000 });
           }
       }
   };
@@ -139,106 +137,128 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return current ? current.label : 'My IEP App';
   };
 
-  // Status UI Helper
-  const renderSyncStatus = () => {
+  // --- Profile Card Renderer ---
+  const renderProfileCard = () => {
       if (!isOnline) {
           return (
-              <div className="flex items-center gap-2 text-gray-400">
-                  <CloudOff size={16} />
-                  <span className="text-xs font-bold">오프라인 모드</span>
-              </div>
+             <div className="bg-gray-100 p-4 rounded-2xl flex items-center gap-3 opacity-60">
+                 <div className="p-2 bg-gray-200 rounded-full">
+                     <CloudOff size={20} className="text-gray-500" />
+                 </div>
+                 <div>
+                     <div className="text-xs font-bold text-gray-500">오프라인 모드</div>
+                     <div className="text-[10px] text-gray-400">네트워크 연결 끊김</div>
+                 </div>
+             </div>
           );
       }
 
-      if (!googleDriveService.isConfigured()) {
-          return (
-              <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                  <div className="flex items-center gap-2 text-amber-700 mb-2">
-                      <AlertTriangle size={14} />
-                      <span className="text-xs font-bold">설정 필요</span>
-                  </div>
-                  <p className="text-[10px] text-amber-600/80 leading-tight mb-2">
-                      API 키 설정이 필요합니다.
-                  </p>
-                  <button 
-                    onClick={() => toast.error("VITE_GOOGLE_CLIENT_ID 설정을 확인하세요", { duration: 3000 })}
-                    className="w-full bg-white text-amber-600 py-2 rounded-lg text-xs font-bold border border-amber-200"
-                  >
-                      설정 확인
-                  </button>
-              </div>
-          );
-      }
-      
       if (!isLoggedIn) {
           return (
-              <button 
-                onClick={handleGoogleLogin}
-                className={`w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95`}
-              >
-                {isGoogleScriptReady ? (
-                    <>
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
-                        Google 로그인
-                    </>
-                ) : isScriptSlow ? (
-                    <>
-                        <RefreshCw size={16} className="text-amber-500" />
-                        연결 재시도 (터치)
-                    </>
-                ) : (
-                    <>
-                        <Loader2 size={16} className="animate-spin text-gray-400" />
-                        서비스 로딩 중...
-                    </>
-                )}
-              </button>
+             <div className="bg-gray-50 border border-gray-200 p-4 rounded-2xl">
+                 <div className="text-xs font-bold text-gray-500 mb-3 text-center">데이터 백업을 위해 로그인하세요</div>
+                 <button 
+                    onClick={handleGoogleLogin}
+                    className="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                 >
+                    {isGoogleScriptReady ? (
+                        <>
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
+                            <span>Google 계정으로 로그인</span>
+                        </>
+                    ) : (
+                        <>
+                            <Loader2 size={14} className="animate-spin text-gray-400" />
+                            <span className="text-gray-400">연결 중...</span>
+                        </>
+                    )}
+                 </button>
+             </div>
           );
       }
 
-      if (syncStatus === 'syncing') {
-          return (
-              <div className="flex items-center justify-center gap-2 text-indigo-600 py-2">
-                  <Loader2 size={16} className="animate-spin" />
-                  <span className="text-xs font-bold">클라우드 저장 중...</span>
-              </div>
-          );
-      }
-
-      if (syncStatus === 'cloud_newer') {
-          return (
-            <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 animate-pulse">
-                <div className="flex items-center gap-2 text-orange-600 mb-2">
-                    <AlertTriangle size={16} />
-                    <span className="text-xs font-bold">클라우드 데이터 발견</span>
-                </div>
-                <button 
-                    onClick={() => syncCloudToLocal()}
-                    className="w-full bg-orange-100 hover:bg-orange-200 text-orange-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1"
-                >
-                    <Download size={14} />
-                    복원하기
-                </button>
-            </div>
-          );
-      }
-      
+      // Logged In State
       return (
-          <div className="space-y-3">
-              <div className="flex items-center justify-between text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-100">
-                  <div className="flex items-center gap-2">
-                    <Cloud size={16} />
-                    <span className="text-xs font-bold">동기화 완료</span>
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm relative group">
+              {/* User Info */}
+              <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200 shrink-0">
+                      {user?.picture ? (
+                          <img src={user.picture} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <UserIcon size={20} />
+                          </div>
+                      )}
                   </div>
-                  {syncStatus === 'saved' && <span className="text-[10px] font-medium">방금 전</span>}
+                  <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-gray-800 truncate leading-tight">{user?.name || '사용자'}</div>
+                      <div className="text-[10px] text-gray-400 truncate">{user?.email}</div>
+                  </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-2 opacity-50 hover:opacity-100 transition-opacity">
-                   <button onClick={() => syncLocalToCloud()} className="text-[10px] flex items-center justify-center gap-1 py-1 bg-gray-100 rounded text-gray-500 hover:bg-gray-200">
-                       <Upload size={10} /> 업로드
-                   </button>
-                   <button onClick={() => syncCloudToLocal()} className="text-[10px] flex items-center justify-center gap-1 py-1 bg-gray-100 rounded text-gray-500 hover:bg-gray-200">
-                       <Download size={10} /> 다운로드
+
+              {/* Sync Status Bar */}
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5 mb-3">
+                    <span className="text-xs font-bold text-gray-500">Cloud Sync</span>
+                    <div className="flex items-center gap-1.5">
+                        {syncStatus === 'syncing' && (
+                            <>
+                                <RefreshCw size={12} className="text-indigo-500 animate-spin" />
+                                <span className="text-[10px] text-indigo-500 font-bold">동기화 중</span>
+                            </>
+                        )}
+                        {syncStatus === 'saved' && (
+                            <>
+                                <Cloud size={12} className="text-green-500" />
+                                <span className="text-[10px] text-green-600 font-bold">동기화 완료</span>
+                            </>
+                        )}
+                        {syncStatus === 'error' && (
+                            <>
+                                <AlertTriangle size={12} className="text-red-500" />
+                                <span className="text-[10px] text-red-500 font-bold">오류 발생</span>
+                            </>
+                        )}
+                        {syncStatus === 'cloud_newer' && (
+                            <>
+                                <Download size={12} className="text-orange-500 animate-bounce" />
+                                <span className="text-[10px] text-orange-500 font-bold">새 데이터 있음</span>
+                            </>
+                        )}
+                        {syncStatus === 'idle' && (
+                            <span className="text-[10px] text-gray-400">대기 중</span>
+                        )}
+                    </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-4 gap-2">
+                   {/* Sync Button (Takes 3 cols) */}
+                   {syncStatus === 'cloud_newer' ? (
+                        <button 
+                            onClick={syncCloudToLocal}
+                            className="col-span-3 bg-orange-50 text-orange-600 border border-orange-100 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-orange-100 active:scale-95 transition-all"
+                        >
+                            <Download size={12} /> 데이터 복원하기
+                        </button>
+                   ) : (
+                       <button 
+                            onClick={syncLocalToCloud}
+                            disabled={syncStatus === 'syncing'}
+                            className="col-span-3 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 transition-all"
+                        >
+                            <Upload size={12} /> 
+                            {syncStatus === 'syncing' ? '업로드 중...' : '지금 동기화'}
+                        </button>
+                   )}
+                   
+                   {/* Logout Button (Takes 1 col) */}
+                   <button 
+                        onClick={logout}
+                        title="로그아웃"
+                        className="col-span-1 bg-white border border-gray-200 text-red-400 py-2 rounded-lg flex items-center justify-center hover:bg-red-50 hover:border-red-100 hover:text-red-500 transition-all"
+                   >
+                       <LogOut size={14} />
                    </button>
               </div>
           </div>
@@ -313,14 +333,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </nav>
 
         <div className="p-4 mt-auto">
-            <div className="rounded-2xl border border-gray-100 p-4 bg-gray-50/50">
-                <div className="mb-3">
-                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Cloud Sync</div>
-                    {renderSyncStatus()}
-                </div>
-            </div>
+            {renderProfileCard()}
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.1.1 (Auto-Sync)</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.2 (Sync Added)</p>
             </div>
         </div>
       </div>
