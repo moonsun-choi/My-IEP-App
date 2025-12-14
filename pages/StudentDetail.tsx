@@ -137,10 +137,10 @@ export const StudentDetail: React.FC = () => {
   // Summary Logic
   const summaryStats = useMemo(() => {
       if (!logs.length) return null;
-      // Last 7 days accuracy
+      // Last 10 records
       const recentLogs = logs.sort((a,b) => b.timestamp - a.timestamp).slice(0, 10);
       const avg = recentLogs.length 
-        ? Math.round(recentLogs.reduce((acc, curr) => acc + (curr.value || curr.accuracy || 0), 0) / recentLogs.length)
+        ? Math.round(recentLogs.reduce((acc, curr) => acc + (curr.value || 0), 0) / recentLogs.length)
         : 0;
       return { count: logs.length, avg };
   }, [logs]);

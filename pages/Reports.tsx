@@ -99,7 +99,7 @@ export const Reports: React.FC = () => {
         
         let avg = 0;
         if (dayLogs.length > 0) {
-            avg = Math.round(dayLogs.reduce((acc, curr) => acc + (curr.accuracy || 0), 0) / dayLogs.length);
+            avg = Math.round(dayLogs.reduce((acc, curr) => acc + (curr.value || 0), 0) / dayLogs.length);
         }
 
         return {

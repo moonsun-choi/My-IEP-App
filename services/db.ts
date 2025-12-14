@@ -5,11 +5,20 @@ import { openDB, DBSchema, IDBPDatabase } from 'idb';
 const DELAY = 100; // Reduced delay as IDB is async but fast
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Polyfill for UUID generation
+// Improved UUID generation with crypto fallback
 function generateUUID() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+  if (typeof crypto !== 'undefined') {
+    if (typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    if (typeof crypto.getRandomValues === 'function') {
+      // @ts-ignore
+      return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+      );
+    }
   }
+  // Fallback for very old environments (unlikely in modern context)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
@@ -66,13 +75,16 @@ class DatabaseService {
     const oldLogs = localStorage.getItem('iep_logs');
     if (oldLogs) {
       try {
-        const logs: ObservationLog[] = JSON.parse(oldLogs);
+        const logs: any[] = JSON.parse(oldLogs); // Use any to handle legacy structure
         const tx = db.transaction('logs', 'readwrite');
         for (const log of logs) {
              // Fix legacy data
              if (!log.measurementType) log.measurementType = 'accuracy';
              if (log.value === undefined && log.accuracy !== undefined) log.value = log.accuracy;
-             await tx.store.put(log);
+             
+             // Clean up deprecated fields before saving if desired, or save as is
+             // Here we ensure 'value' is set.
+             await tx.store.put(log as ObservationLog);
         }
         await tx.done;
       } catch (e) {
@@ -253,10 +265,10 @@ class DatabaseService {
     const db = await this.dbPromise;
     const logs = await db.getAllFromIndex('logs', 'by-goal', goalId);
     
-    // Normalize logic for legacy support
-    return logs.map(l => ({
+    // Normalize logic for legacy support (runtime fix)
+    return logs.map((l: any) => ({
         ...l,
-        measurementType: 'accuracy', // Force accuracy
+        measurementType: 'accuracy', 
         value: l.value !== undefined ? l.value : (l.accuracy || 0)
     }));
   }
@@ -271,9 +283,9 @@ class DatabaseService {
     
     const logs = results.flat();
 
-    return logs.map(l => ({
+    return logs.map((l: any) => ({
         ...l,
-        measurementType: 'accuracy', // Force accuracy
+        measurementType: 'accuracy', 
         value: l.value !== undefined ? l.value : (l.accuracy || 0)
     }));
   }
@@ -291,7 +303,6 @@ class DatabaseService {
       goal_id: goalId,
       measurementType: 'accuracy',
       value: value,
-      accuracy: value, // legacy backup
       promptLevel,
       timestamp: Date.now(),
       media_uri,
@@ -325,7 +336,6 @@ class DatabaseService {
         ...oldLog,
         measurementType: 'accuracy',
         value,
-        accuracy: value,
         promptLevel,
         timestamp,
         media_uri,

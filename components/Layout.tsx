@@ -38,6 +38,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, [setOnlineStatus]);
 
+  // 3. Protect against accidental closure during sync
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        if (syncStatus === 'syncing') {
+            e.preventDefault();
+            // Standard message for legacy browsers (modern browsers ignore the message but show a generic prompt)
+            e.returnValue = '데이터 동기화 중입니다. 앱을 종료하면 변경사항이 저장되지 않을 수 있습니다.';
+        }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [syncStatus]);
+
   // Close sidebar automatically when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
@@ -102,7 +116,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           return (
               <div className="flex items-center justify-center gap-2 text-indigo-600 py-2">
                   <Loader2 size={16} className="animate-spin" />
-                  <span className="text-xs font-bold">동기화 중...</span>
+                  <span className="text-xs font-bold">클라우드 저장 중...</span>
               </div>
           );
       }

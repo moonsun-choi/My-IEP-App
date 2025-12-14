@@ -12,7 +12,7 @@ interface LogCardProps {
 }
 
 export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick }) => {
-  const value = log.value ?? log.accuracy ?? 0;
+  const value = log.value;
   const GoalIconComponent = getGoalIcon(goalIcon);
   const isVideo = log.media_uri?.startsWith('data:video');
 

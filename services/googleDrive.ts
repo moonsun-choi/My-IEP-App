@@ -11,7 +11,6 @@ declare global {
 }
 
 // Access environment variables in Vite safely
-// Use optional chaining or fallback to empty object to prevent "Cannot read properties of undefined"
 const env = (import.meta as any).env || {};
 const CLIENT_ID = env.VITE_GOOGLE_CLIENT_ID || '';
 const API_KEY = env.VITE_GOOGLE_API_KEY || '';
@@ -153,6 +152,11 @@ export const googleDriveService = {
     };
 
     const accessToken = window.gapi.client.getToken().access_token;
+    
+    // Use FormData for multipart upload (cleaner and safer than manual string construction)
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', fileContent);
 
     if (files && files.length > 0) {
       // Update existing
@@ -160,14 +164,10 @@ export const googleDriveService = {
       await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
         method: 'PATCH',
         headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-        body: createMultipartBody(metadata, jsonData) 
+        body: form
       });
     } else {
       // Create new
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', fileContent);
-
       await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
         method: 'POST',
         headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
@@ -269,23 +269,12 @@ export const googleDriveService = {
         const data = await res.json();
         const fileId = data.id;
 
-        // Note: 'webContentLink' allows direct download/display, but requires appropriate permissions.
-        // 'drive.file' scope grants access to files created by this app, so the user can view it.
-        // However, for an <img> tag to work cross-origin without auth headers, the file usually needs public sharing
-        // OR we use the thumbnailLink (which is often accessible) or webContentLink with logged-in browser session.
-        // For simplicity in this 'personal' app, we use webContentLink. 
-        // If <img> fails to load due to CORs/Auth, we might need a proxy or use Google Drive Embed API.
-        
         // Let's try to get a thumbnail link which is more friendly for UI display
         const getFileRes = await window.gapi.client.drive.files.get({
             fileId: fileId,
             fields: 'webContentLink, thumbnailLink'
         });
         
-        // Prefer webContentLink (full quality) but fallback to thumbnail if needed. 
-        // Note: webContentLink sometimes forces download. thumbnailLink is often better for previews.
-        // Let's store webContentLink but if it's an image, maybe we want the thumbnail for list views?
-        // We will return webContentLink as the primary URI.
         return getFileRes.result.webContentLink || getFileRes.result.thumbnailLink || "";
 
     } catch (e) {
@@ -295,22 +284,3 @@ export const googleDriveService = {
     }
   }
 };
-
-// Helper for Google Drive API Multipart Upload
-function createMultipartBody(metadata: any, content: string) {
-    const boundary = '-------314159265358979323846';
-    const delimiter = "\r\n--" + boundary + "\r\n";
-    const close_delim = "\r\n--" + boundary + "--";
-
-    const base64Data = btoa(unescape(encodeURIComponent(content)));
-
-    return delimiter +
-        'Content-Type: application/json\r\n\r\n' +
-        JSON.stringify(metadata) +
-        delimiter +
-        'Content-Type: application/json\r\n' +
-        'Content-Transfer-Encoding: base64\r\n' +
-        '\r\n' +
-        base64Data +
-        close_delim;
-}

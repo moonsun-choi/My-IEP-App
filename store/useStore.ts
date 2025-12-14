@@ -259,7 +259,9 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
                 } catch (e) {
                     console.error("Failed to upload media", e);
-                    alert("미디어 업로드에 실패하여 텍스트만 저장됩니다.");
+                    alert("미디어 업로드에 실패했습니다. 기록이 저장되지 않았습니다. 네트워크를 확인 후 다시 시도해주세요.");
+                    set({ isLoading: false });
+                    return; // Critical Change: Exit function, do not save incomplete data.
                 } finally {
                     set({ isLoading: false });
                 }
@@ -289,7 +291,9 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
                 } catch (e) {
                     console.error("Failed to upload media", e);
-                    alert("미디어 업로드 실패");
+                    alert("미디어 업로드 실패. 수정사항이 저장되지 않았습니다.");
+                    set({ isLoading: false });
+                    return; // Critical Change: Exit function
                 } finally {
                     set({ isLoading: false });
                 }
