@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">My-IEP-App</string>
+    <string name="title_activity_main">My-IEP-App</string>
+    <string name="package_name">com.myiep.app</string>
+    <string name="custom_url_scheme">com.myiep.app</string>
+</resources>
