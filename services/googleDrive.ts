@@ -39,18 +39,19 @@ export const googleDriveService = {
 
   // Initialize gapi client (load scripts first in index.html)
   init: async (onInitCallback: () => void) => {
+    // Retry mechanism for script loading (increased for mobile)
+    let attempts = 0;
+    const checkInterval = 250;
+    const maxAttempts = 120; // 120 * 250ms = 30 seconds
+
+    while ((typeof window.gapi === 'undefined' || typeof window.google === 'undefined') && attempts < maxAttempts) {
+        await wait(checkInterval);
+        attempts++;
+    }
+
     if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
-        console.warn('Google scripts not loaded, waiting...');
-        // Simple retry mechanism if scripts load slowly
-        let attempts = 0;
-        while ((typeof window.gapi === 'undefined' || typeof window.google === 'undefined') && attempts < 10) {
-            await wait(500);
-            attempts++;
-        }
-        if (typeof window.gapi === 'undefined' || typeof window.google === 'undefined') {
-             console.error('Google scripts failed to load.');
-             return;
-        }
+         console.error('Google scripts failed to load after 30 seconds.');
+         return;
     }
 
     const gapiLoaded = new Promise<void>((resolve) => {

@@ -76,7 +76,7 @@ export interface AppState {
   reorderStudents: (students: Student[]) => Promise<void>;
 
   fetchGoals: (studentId: string) => Promise<void>;
-  addGoal: (studentId: string, title: string, icon?: string, status?: GoalStatus) => Promise<void>;
+  addGoal: (studentId: string, title: string, description?: string, icon?: string, status?: GoalStatus) => Promise<void>;
   updateGoal: (goalId: string, title: string, description?: string, icon?: string, status?: GoalStatus) => Promise<void>;
   deleteGoal: (goalId: string, studentId: string) => Promise<void>;
   

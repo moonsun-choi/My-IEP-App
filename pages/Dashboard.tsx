@@ -68,7 +68,7 @@ export const Dashboard: React.FC = () => {
           path: '/tracker'
       },
       students: {
-          label: '내 학급',
+          label: '나의 학급',
           desc: '학생 및 목표 관리',
           icon: Users,
           color: 'bg-indigo-100 text-indigo-600',
@@ -117,7 +117,10 @@ export const Dashboard: React.FC = () => {
                   </div>
 
                   {studentNeedsObservation ? (
-                      <div className="mt-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-pointer" onClick={() => navigate('/tracker')}>
+                      <div 
+                        className="mt-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-pointer" 
+                        onClick={() => navigate(`/tracker?studentId=${studentNeedsObservation.id}`)}
+                      >
                            <div className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white/30 overflow-hidden shrink-0">
                                <img src={studentNeedsObservation.photo_uri} alt="" className="w-full h-full object-cover" />
                            </div>

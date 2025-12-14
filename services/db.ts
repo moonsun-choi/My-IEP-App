@@ -208,10 +208,10 @@ class DatabaseService {
     // Seed default goals if absolutely empty
     if (allGoals.length === 0 && (await this.getStudents()).length > 0) {
        const demoGoals = [
-         { id: 'g1', student_id: '1', title: "이름 호명 반응하기", description: "교사가 내 이름을 부르면 눈을 맞추거나 '네'라고 답한다.", icon: 'communication', status: 'in_progress' as GoalStatus },
-         { id: 'g2', student_id: '1', title: "사물 요구하기 (주세요)", description: "원하는 사물을 보고 몸짓과 함께 '주세요'라고 요구한다.", icon: 'social', status: 'in_progress' as GoalStatus },
-         { id: 'g4', student_id: '2', title: "손 씻기 6단계", description: "식사 전 손 씻기 6단계 수칙을 지킨다.", icon: 'self_care', status: 'completed' as GoalStatus },
-         { id: 'g5', student_id: '2', title: "화장실 뒷처리", description: "용변 후 옷을 입고 난 뒤에 물을 내린다.", icon: 'self_care', status: 'in_progress' as GoalStatus }
+         { id: 'g1', student_id: '1', title: "이름 호명 반응하기", description: "교사가 내 이름을 부르면 눈을 맞추거나 '네'라고 답한다.", icon: 'comm_listen', status: 'in_progress' as GoalStatus },
+         { id: 'g2', student_id: '1', title: "사물 요구하기 (주세요)", description: "원하는 사물을 보고 몸짓과 함께 '주세요'라고 요구한다.", icon: 'comm_gesture', status: 'in_progress' as GoalStatus },
+         { id: 'g4', student_id: '2', title: "손 씻기 6단계", description: "식사 전 손 씻기 6단계 수칙을 지킨다.", icon: 'hygiene_wash', status: 'completed' as GoalStatus },
+         { id: 'g5', student_id: '2', title: "화장실 뒷처리", description: "용변 후 옷을 입고 난 뒤에 물을 내린다.", icon: 'hygiene_paper', status: 'in_progress' as GoalStatus }
        ];
        await this.setKeyVal('goals', demoGoals);
        allGoals = demoGoals;
@@ -224,12 +224,13 @@ class DatabaseService {
     return allGoals.filter(g => g.student_id === studentId);
   }
 
-  async addGoal(studentId: string, title: string, icon?: string, status: GoalStatus = 'in_progress'): Promise<Goal> {
+  async addGoal(studentId: string, title: string, description?: string, icon?: string, status: GoalStatus = 'in_progress'): Promise<Goal> {
     const goals = await this.getAllGoals();
     const newGoal: Goal = {
       id: generateUUID(),
       student_id: studentId,
       title,
+      description,
       icon: icon || 'target',
       status
     };

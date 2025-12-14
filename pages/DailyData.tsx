@@ -6,6 +6,7 @@ import { History, X, Filter, CheckSquare, Paperclip, MessageSquare, ClipboardX, 
 import { QuickRecordSheet } from '../components/QuickRecordSheet';
 import { LogCard } from '../components/LogCard';
 import { StudentGoalSelector } from '../components/StudentGoalSelector';
+import { useSearchParams } from 'react-router-dom';
 
 export const DailyData: React.FC = () => {
   const { students, goals, logs, fetchStudents, fetchGoals, fetchLogs, recordTrial, deleteLog, updateLog } = useStore();
@@ -22,15 +23,30 @@ export const DailyData: React.FC = () => {
   const [historyFilterMedia, setHistoryFilterMedia] = useState(false);
   const [historyFilterNotes, setHistoryFilterNotes] = useState(false);
 
+  // URL Query Params
+  const [searchParams] = useSearchParams();
+
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
 
+  // Updated effect to handle query param pre-selection
   useEffect(() => {
-    if (students.length > 0 && !selectedStudentId) {
-      setSelectedStudentId(students[0].id);
+    if (students.length > 0) {
+      const paramId = searchParams.get('studentId');
+      
+      // If URL param exists and is valid, use it.
+      if (paramId && students.some(s => s.id === paramId)) {
+        if (selectedStudentId !== paramId) {
+            setSelectedStudentId(paramId);
+        }
+      } 
+      // Otherwise default to first student if nothing selected
+      else if (!selectedStudentId) {
+        setSelectedStudentId(students[0].id);
+      }
     }
-  }, [students, selectedStudentId]);
+  }, [students, searchParams]);
 
   useEffect(() => {
     if (selectedStudentId) {

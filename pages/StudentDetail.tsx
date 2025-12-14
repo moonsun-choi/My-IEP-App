@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { ArrowLeft, Plus, Trash2, Check, X, CheckCircle2, PauseCircle, PlayCircle, ArrowUpDown, Settings, BarChart3, ListChecks, Wand2, User } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Check, X, CheckCircle2, PauseCircle, PlayCircle, ArrowUpDown, BarChart3, ListChecks, Wand2, Edit2, Target } from 'lucide-react';
 import { Goal, GoalStatus } from '../types';
 import {
     DndContext,
@@ -19,36 +19,32 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { SortableGoalItem } from '../components/SortableGoalItem';
-import { GOAL_ICONS } from '../utils/goalIcons';
+import { GOAL_ICONS, getGoalIcon } from '../utils/goalIcons';
 
 export const StudentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { students, goals, logs, fetchGoals, fetchStudentLogs, addGoal, updateGoal, deleteGoal, reorderGoals, updateStudent, deleteStudent } = useStore();
+  const { students, goals, logs, fetchGoals, fetchStudentLogs, addGoal, updateGoal, deleteGoal, reorderGoals } = useStore();
   
   // Tabs: 'goals' | 'summary'
   const [activeTab, setActiveTab] = useState<'goals' | 'summary'>('goals');
 
-  // Add Goal State
-  const [newGoalTitle, setNewGoalTitle] = useState('');
-  const [isAddingGoal, setIsAddingGoal] = useState(false);
+  // Unified Sheet State
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
+  const [targetGoal, setTargetGoal] = useState<Goal | null>(null);
 
-  // Edit Goal State
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editStatus, setEditStatus] = useState<GoalStatus>('in_progress');
+  // Form State
+  const [formTitle, setFormTitle] = useState('');
+  const [formDesc, setFormDesc] = useState('');
+  const [formStatus, setFormStatus] = useState<GoalStatus>('in_progress');
+  const [formIcon, setFormIcon] = useState<string>('target');
   
-  // Icon Selection State
-  const [selectingIconGoal, setSelectingIconGoal] = useState<Goal | null>(null);
+  // Icon Picker Modal State
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
 
-  // Global Edit Mode (for goals)
+  // Global Edit Mode (for goals list)
   const [isEditMode, setIsEditMode] = useState(false);
-
-  // Student Settings Sheet State
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [tempStudentName, setTempStudentName] = useState('');
 
   const student = students.find(s => s.id === id);
 
@@ -76,74 +72,73 @@ export const StudentDetail: React.FC = () => {
     }
   };
 
-  const handleAddGoal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !newGoalTitle.trim()) return;
-    await addGoal(id, newGoalTitle); 
-    setNewGoalTitle('');
-    setIsAddingGoal(false);
+  // --- Sheet Handlers ---
+  const openAddSheet = () => {
+      setSheetMode('add');
+      setTargetGoal(null);
+      setFormTitle('');
+      setFormDesc('');
+      setFormStatus('in_progress');
+      setFormIcon('target');
+      setIsSheetOpen(true);
   };
 
-  const handleOpenEdit = (goal: Goal) => {
-      setEditingGoal(goal);
-      setEditTitle(goal.title);
-      setEditDescription(goal.description || '');
-      setEditStatus(goal.status || 'in_progress');
+  const openEditSheet = (goal: Goal) => {
+      setSheetMode('edit');
+      setTargetGoal(goal);
+      setFormTitle(goal.title);
+      setFormDesc(goal.description || '');
+      setFormStatus(goal.status || 'in_progress');
+      setFormIcon(goal.icon || 'target');
+      setIsSheetOpen(true);
   };
 
-  const handleUpdateGoal = async () => {
-      if (!editingGoal || !editTitle.trim()) return;
-      await updateGoal(editingGoal.id, editTitle, editDescription, editingGoal.icon, editStatus);
-      setEditingGoal(null);
+  const closeSheet = () => {
+      setIsSheetOpen(false);
+      setTargetGoal(null);
+  };
+
+  const handleFormSubmit = async () => {
+      if (!id || !formTitle.trim()) return;
+
+      if (sheetMode === 'add') {
+          // Pass description (formDesc) to addGoal
+          await addGoal(id, formTitle, formDesc, formIcon, formStatus);
+      } else if (sheetMode === 'edit' && targetGoal) {
+          await updateGoal(targetGoal.id, formTitle, formDesc, formIcon, formStatus);
+      }
+      closeSheet();
   };
 
   const handleDeleteGoal = async (goal?: Goal) => {
-      const target = goal || editingGoal;
+      const target = goal || targetGoal;
       if (!target || !id) return;
       if (confirm('이 목표를 정말 삭제하시겠습니까?')) {
         await deleteGoal(target.id, id);
-        setEditingGoal(null);
+        closeSheet();
         if (goals.length <= 1) setIsEditMode(false);
       }
   };
-  
-  const handleIconClick = (goal: Goal) => {
-      setSelectingIconGoal(goal);
-  };
-  
-  const handleSelectIcon = async (iconKey: string) => {
-      if (selectingIconGoal) {
-          await updateGoal(selectingIconGoal.id, selectingIconGoal.title, selectingIconGoal.description, iconKey, selectingIconGoal.status);
-          setSelectingIconGoal(null);
-      }
-  };
 
-  // Student Profile Actions
-  const handleUpdateStudentName = async () => {
-      if(student && tempStudentName.trim()) {
-          await updateStudent(student.id, tempStudentName);
-          setIsEditingName(false);
-          setIsSettingsOpen(false);
-      }
-  };
-  
-  const handleDeleteStudent = async () => {
-      if(student && confirm(`'${student.name}' 학생을 삭제하시겠습니까? 되돌릴 수 없습니다.`)) {
-          await deleteStudent(student.id);
-          navigate('/students');
-      }
+  // Icon Click on List Item (Just opens edit sheet for that goal to change icon)
+  const handleIconClick = (goal: Goal) => {
+      setTargetGoal(goal);
+      setFormIcon(goal.icon || 'target');
+      setIsIconPickerOpen(true);
   };
 
   // Summary Logic
   const summaryStats = useMemo(() => {
       if (!logs.length) return null;
-      // Last 10 records
       const recentLogs = logs.sort((a,b) => b.timestamp - a.timestamp).slice(0, 10);
       const avg = recentLogs.length 
         ? Math.round(recentLogs.reduce((acc, curr) => acc + (curr.value || 0), 0) / recentLogs.length)
         : 0;
       return { count: logs.length, avg };
   }, [logs]);
+
+  // Use formIcon for picker, or default
+  const CurrentIcon = getGoalIcon(formIcon);
 
   if (!student) return <div className="p-8 text-center text-gray-500">학생 정보를 불러오는 중...</div>;
 
@@ -170,17 +165,6 @@ export const StudentDetail: React.FC = () => {
                         <p className="text-xs text-gray-500 font-medium">개별화교육계획 (IEP)</p>
                     </div>
                 </div>
-                
-                {/* Settings Toggle */}
-                <button 
-                    onClick={() => {
-                        setTempStudentName(student.name);
-                        setIsSettingsOpen(true);
-                    }}
-                    className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                >
-                    <Settings size={20} />
-                </button>
              </div>
 
              {/* Tab Navigation */}
@@ -217,7 +201,7 @@ export const StudentDetail: React.FC = () => {
                                 className={`text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${isEditMode ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}
                             >
                                 {isEditMode ? <Check size={14} /> : <ArrowUpDown size={14} />}
-                                {isEditMode ? '편집 완료' : '순서 편집'}
+                                {isEditMode ? '편집 완료' : '편집'}
                             </button>
                         </div>
                     )}
@@ -236,7 +220,7 @@ export const StudentDetail: React.FC = () => {
                                     key={goal.id} 
                                     goal={goal} 
                                     isEditMode={isEditMode}
-                                    onEdit={handleOpenEdit}
+                                    onEdit={openEditSheet}
                                     onDelete={handleDeleteGoal}
                                     onIconClick={handleIconClick}
                                 />
@@ -245,7 +229,7 @@ export const StudentDetail: React.FC = () => {
                     </DndContext>
 
                     {/* Empty State */}
-                    {goals.length === 0 && !isAddingGoal && (
+                    {goals.length === 0 && (
                         <div className="py-16 flex flex-col items-center justify-center text-center">
                             <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-dashed border-gray-200">
                                 <Wand2 size={32} className="text-indigo-300" />
@@ -255,7 +239,7 @@ export const StudentDetail: React.FC = () => {
                                 학생을 위한 첫 번째 IEP 목표를<br/>설정하고 기록을 시작해보세요.
                             </p>
                             <button
-                                onClick={() => setIsAddingGoal(true)}
+                                onClick={openAddSheet}
                                 className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-transform active:scale-95 flex items-center gap-2"
                             >
                                 <Plus size={18} /> 목표 추가하기
@@ -263,47 +247,15 @@ export const StudentDetail: React.FC = () => {
                         </div>
                     )}
 
-                    {/* Add Goal Form / Button Logic */}
-                    {!isEditMode && (
-                        isAddingGoal ? (
-                        <form onSubmit={handleAddGoal} className="mt-6 p-6 bg-white rounded-2xl shadow-sm animate-fade-in border border-gray-100">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-sm font-bold text-gray-700">새 목표 추가</h3>
-                                <button type="button" onClick={() => setIsAddingGoal(false)} className="text-gray-400 hover:text-gray-600">
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            <div className="mb-4">
-                                <label className="text-xs font-bold text-gray-500 mb-1.5 block">목표 제목</label>
-                                <textarea
-                                value={newGoalTitle}
-                                onChange={(e) => setNewGoalTitle(e.target.value)}
-                                placeholder="예: 이름 부르면 눈 맞추기"
-                                className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none font-medium"
-                                rows={2}
-                                autoFocus
-                                />
-                            </div>
-                            
-                            <button
-                                type="submit"
-                                className="w-full py-3.5 text-sm bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-transform active:scale-95"
-                            >
-                                저장하기
-                            </button>
-                        </form>
-                        ) : (
-                        goals.length > 0 && (
-                            <button
-                                onClick={() => setIsAddingGoal(true)}
-                                className="w-full mt-6 py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-400 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-indigo-300 hover:text-indigo-500 transition-all group"
-                            >
-                                <Plus size={20} className="group-hover:scale-110 transition-transform"/>
-                                <span>새 목표 추가하기</span>
-                            </button>
-                        )
-                        )
+                    {/* Add Goal Button (Footer) */}
+                    {goals.length > 0 && !isEditMode && (
+                        <button
+                            onClick={openAddSheet}
+                            className="w-full mt-6 py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-400 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-indigo-300 hover:text-indigo-500 transition-all group"
+                        >
+                            <Plus size={20} className="group-hover:scale-110 transition-transform"/>
+                            <span>목표 추가하기</span>
+                        </button>
                     )}
                 </div>
             )}
@@ -352,99 +304,136 @@ export const StudentDetail: React.FC = () => {
         </main>
       </div>
 
-      {/* Edit Goal Modal */}
-      {editingGoal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-scale-up max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-gray-800">목표 수정</h3>
-                    <button onClick={() => setEditingGoal(null)} className="p-2 bg-gray-100 rounded-full text-gray-500">
-                        <X size={18} />
-                    </button>
-                </div>
+      {/* Unified Add/Edit Goal Sheet */}
+      {isSheetOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm animate-fade-in" onClick={closeSheet}>
+            <div className="bg-white w-full max-w-sm sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 opacity-60" />
                 
-                <div className="space-y-5 mb-6">
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 mb-2 block">진행 상태</label>
-                        <div className="grid grid-cols-3 gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
-                             <button 
-                                onClick={() => setEditStatus('in_progress')}
-                                className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${editStatus === 'in_progress' ? 'bg-white text-indigo-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
-                             >
-                                 <PlayCircle size={16} /> 진행중
-                             </button>
-                             <button 
-                                onClick={() => setEditStatus('completed')}
-                                className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${editStatus === 'completed' ? 'bg-white text-green-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
-                             >
-                                 <CheckCircle2 size={16} /> 완료됨
-                             </button>
-                             <button 
-                                onClick={() => setEditStatus('on_hold')}
-                                className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${editStatus === 'on_hold' ? 'bg-white text-gray-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
-                             >
-                                 <PauseCircle size={16} /> 보류
-                             </button>
-                        </div>
+                {/* Sheet Title */}
+                <h3 className="text-lg font-bold text-center text-gray-800 mb-6">
+                    {sheetMode === 'add' ? '목표 등록' : '목표 수정'}
+                </h3>
+                
+                {/* Icon Picker Removed from Sheet */}
+
+                {/* Status Toggles */}
+                <div className="mb-6">
+                    <label className="text-xs font-bold text-gray-500 mb-2 block text-center">진행 상태</label>
+                    <div className="grid grid-cols-3 gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                            <button 
+                            onClick={() => setFormStatus('in_progress')}
+                            className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${formStatus === 'in_progress' ? 'bg-white text-indigo-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <PlayCircle size={16} /> 진행중
+                            </button>
+                            <button 
+                            onClick={() => setFormStatus('completed')}
+                            className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${formStatus === 'completed' ? 'bg-white text-green-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <CheckCircle2 size={16} /> 완료됨
+                            </button>
+                            <button 
+                            onClick={() => setFormStatus('on_hold')}
+                            className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${formStatus === 'on_hold' ? 'bg-white text-gray-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <PauseCircle size={16} /> 보류
+                            </button>
                     </div>
+                </div>
+
+                {/* Inputs */}
+                <div className="space-y-4 mb-8">
                     <div>
-                        <label className="text-xs font-bold text-gray-500 mb-1 block">목표 제목</label>
-                        <textarea 
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-indigo-500 outline-none text-sm font-medium"
-                            rows={2}
+                        <label className="text-xs font-bold text-gray-500 mb-1.5 block">목표 제목</label>
+                        <input 
+                            type="text"
+                            value={formTitle}
+                            onChange={(e) => setFormTitle(e.target.value)}
+                            className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-gray-300"
+                            placeholder="예: 이름 부르면 눈 맞추기"
+                            autoFocus
                         />
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-gray-500 mb-1 block">상세 설명 (선택)</label>
+                        <label className="text-xs font-bold text-gray-500 mb-1.5 block">상세 설명 (선택)</label>
                         <textarea 
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            className="w-full p-3 rounded-xl bg-gray-50 border border-gray-200 focus:border-indigo-500 outline-none text-sm"
+                            value={formDesc}
+                            onChange={(e) => setFormDesc(e.target.value)}
+                            className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-gray-300 resize-none"
                             rows={3}
-                            placeholder="구체적인 수행 기준 등"
+                            placeholder="구체적인 수행 기준이나 상황 설명"
                         />
                     </div>
                 </div>
 
+                {/* Actions */}
                 <div className="flex gap-3">
+                    {sheetMode === 'edit' && (
+                        <button 
+                            onClick={() => handleDeleteGoal()}
+                            className="p-4 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                        >
+                            <Trash2 size={24} />
+                        </button>
+                    )}
                     <button 
-                        onClick={() => handleDeleteGoal()}
-                        className="p-3 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                        onClick={handleFormSubmit}
+                        disabled={!formTitle.trim()}
+                        className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                     >
-                        <Trash2 size={20} />
-                    </button>
-                    <button 
-                        onClick={handleUpdateGoal}
-                        className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-lg shadow-indigo-200"
-                    >
-                        수정 완료
+                        {sheetMode === 'add' ? (
+                            <>
+                                <Plus size={20} strokeWidth={3} />
+                                <span>등록하기</span>
+                            </>
+                        ) : (
+                            <>
+                                <Edit2 size={20} strokeWidth={3} />
+                                <span>수정 완료</span>
+                            </>
+                        )}
                     </button>
                 </div>
+                
+                <button 
+                    onClick={closeSheet}
+                    className="w-full mt-6 py-2 text-gray-400 text-sm font-bold hover:text-gray-600 transition-colors"
+                >
+                    닫기
+                </button>
             </div>
         </div>
       )}
       
-      {/* Icon Selection Modal */}
-      {selectingIconGoal && (
-          <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setSelectingIconGoal(null)}>
+      {/* Icon Picker Overlay (Direct Icon Edit) */}
+      {isIconPickerOpen && (
+          <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setIsIconPickerOpen(false)}>
               <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-scale-up max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                   <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-bold text-gray-800">아이콘 변경</h3>
-                      <button onClick={() => setSelectingIconGoal(null)} className="p-2 bg-gray-100 rounded-full text-gray-500">
+                      <button onClick={() => setIsIconPickerOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-500">
                           <X size={18} />
                       </button>
                   </div>
                   
-                  {/* Expanded Icon Grid */}
                   <div className="grid grid-cols-5 gap-3">
                       {Object.entries(GOAL_ICONS).map(([key, Icon]) => (
                           <button
                               key={key}
-                              onClick={() => handleSelectIcon(key)}
+                              onClick={async () => {
+                                  if (!isSheetOpen && targetGoal) {
+                                      // Direct update from list card
+                                      await updateGoal(targetGoal.id, targetGoal.title, targetGoal.description, key, targetGoal.status);
+                                      setTargetGoal(null);
+                                  } else {
+                                      // Fallback for sheet (though UI hidden)
+                                      setFormIcon(key);
+                                  }
+                                  setIsIconPickerOpen(false);
+                              }}
                               className={`aspect-square rounded-2xl flex flex-col items-center justify-center transition-all gap-1 ${
-                                  selectingIconGoal.icon === key 
+                                  formIcon === key 
                                   ? 'bg-indigo-600 text-white shadow-lg scale-105' 
                                   : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                               }`}
@@ -453,70 +442,6 @@ export const StudentDetail: React.FC = () => {
                           </button>
                       ))}
                   </div>
-              </div>
-          </div>
-      )}
-
-      {/* Student Settings Sheet (Bottom Modal) */}
-      {isSettingsOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm animate-fade-in" onClick={() => setIsSettingsOpen(false)}>
-              <div 
-                className="bg-white w-full max-w-sm sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-slide-up"
-                onClick={e => e.stopPropagation()}
-              >
-                  <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 opacity-60" />
-                  
-                  <div className="mb-6 text-center">
-                      <div className="w-20 h-20 rounded-full bg-gray-100 mx-auto mb-3 overflow-hidden border border-gray-200 relative group">
-                          <img src={student.photo_uri} alt="" className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                              <span className="text-white text-xs font-bold">사진 변경</span>
-                          </div>
-                      </div>
-                      
-                      {isEditingName ? (
-                          <div className="flex items-center gap-2 justify-center">
-                              <input 
-                                  type="text" 
-                                  value={tempStudentName} 
-                                  onChange={e => setTempStudentName(e.target.value)}
-                                  className="border-b-2 border-indigo-500 text-center font-bold text-xl outline-none pb-1 w-40"
-                                  autoFocus
-                              />
-                              <button onClick={handleUpdateStudentName} className="p-2 bg-indigo-600 text-white rounded-full">
-                                  <Check size={16} />
-                              </button>
-                          </div>
-                      ) : (
-                          <h2 className="text-xl font-bold text-gray-800 flex items-center justify-center gap-2" onClick={() => setIsEditingName(true)}>
-                              {student.name} <Settings size={14} className="text-gray-400" />
-                          </h2>
-                      )}
-                  </div>
-                  
-                  <div className="space-y-3">
-                      <button 
-                        onClick={() => setIsEditingName(true)}
-                        className="w-full py-4 bg-gray-50 hover:bg-gray-100 rounded-2xl text-gray-700 font-bold flex items-center justify-between px-6 transition-colors"
-                      >
-                          <span className="flex items-center gap-3"><User size={20} className="text-gray-400"/>이름 수정</span>
-                          <ArrowLeft size={16} className="rotate-180 text-gray-300"/>
-                      </button>
-                      
-                      <button 
-                        onClick={handleDeleteStudent}
-                        className="w-full py-4 bg-red-50 hover:bg-red-100 rounded-2xl text-red-600 font-bold flex items-center justify-between px-6 transition-colors"
-                      >
-                          <span className="flex items-center gap-3"><Trash2 size={20} className="text-red-400"/>학생 삭제</span>
-                      </button>
-                  </div>
-                  
-                  <button 
-                    onClick={() => setIsSettingsOpen(false)}
-                    className="w-full mt-6 py-4 text-gray-500 font-bold hover:text-gray-800"
-                  >
-                      닫기
-                  </button>
               </div>
           </div>
       )}

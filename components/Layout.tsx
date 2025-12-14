@@ -13,14 +13,23 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
+  const [isScriptSlow, setIsScriptSlow] = useState(false);
+  
   const location = useLocation();
   const { isLoggedIn, isOnline, syncStatus, setLoggedIn, setOnlineStatus, syncCloudToLocal, syncLocalToCloud } = useStore();
 
   useEffect(() => {
     // 1. Init Google Drive
+    
+    // Set a timeout to indicate slow network if scripts don't load quickly
+    const slowTimer = setTimeout(() => {
+        if (!isGoogleScriptReady) setIsScriptSlow(true);
+    }, 6000); // 6 seconds
+
     googleDriveService.init(() => {
         // Callback when ready
         setIsGoogleScriptReady(true);
+        setIsScriptSlow(false);
         console.log("Google Service Initialized");
     });
 
@@ -37,6 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
+        clearTimeout(slowTimer);
     };
   }, [setOnlineStatus]);
 
@@ -86,7 +96,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: '대시보드', path: '/' },
-    { icon: Users, label: '내 학급', path: '/students' },
+    { icon: Users, label: '나의 학급', path: '/students' },
     { icon: CheckSquare, label: '관찰 기록', path: '/tracker' },
     { icon: BarChart2, label: '보고서', path: '/reports' },
   ];
@@ -132,14 +142,19 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       if (!isLoggedIn) {
           return (
               <button 
-                onClick={handleGoogleLogin}
-                disabled={!isGoogleScriptReady}
+                onClick={isScriptSlow ? () => window.location.reload() : handleGoogleLogin}
+                disabled={!isGoogleScriptReady && !isScriptSlow}
                 className={`w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {isGoogleScriptReady ? (
                     <>
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
                         Google 로그인 및 동기화
+                    </>
+                ) : isScriptSlow ? (
+                    <>
+                        <RefreshCw size={16} className="text-amber-500" />
+                        연결 지연 (터치하여 새로고침)
                     </>
                 ) : (
                     <>
@@ -191,10 +206,10 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               
               <div className="grid grid-cols-2 gap-2 opacity-50 hover:opacity-100 transition-opacity">
                    <button onClick={() => syncLocalToCloud()} className="text-[10px] flex items-center justify-center gap-1 py-1 bg-gray-100 rounded text-gray-500 hover:bg-gray-200">
-                       <Upload size={10} /> 강제 업로드
+                       <Upload size={10} /> 업로드
                    </button>
                    <button onClick={() => syncCloudToLocal()} className="text-[10px] flex items-center justify-center gap-1 py-1 bg-gray-100 rounded text-gray-500 hover:bg-gray-200">
-                       <Download size={10} /> 강제 다운로드
+                       <Download size={10} /> 다운로드
                    </button>
               </div>
           </div>

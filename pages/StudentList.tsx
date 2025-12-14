@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { Settings, User, ChevronRight, Target, PlayCircle, Plus, Check, ArrowUpDown } from 'lucide-react';
+import { Check, ArrowUpDown, Trash2, Plus, Edit2, Camera } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
@@ -22,18 +22,16 @@ import { Student } from '../types';
 
 export const StudentList: React.FC = () => {
   const { students, goals, fetchStudents, fetchAllGoals, isLoading, addStudent, reorderStudents, updateStudent, deleteStudent } = useStore();
-  const navigate = useNavigate();
-
+  
   // Mode State
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Add Student State
-  const [newStudentName, setNewStudentName] = useState('');
+  // Sheet States
   const [isAdding, setIsAdding] = useState(false);
+  const [settingsStudent, setSettingsStudent] = useState<Student | null>(null);
   
-  // Edit Student Name State
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [editName, setEditName] = useState('');
+  // Shared Input State for Sheet
+  const [tempStudentName, setTempStudentName] = useState('');
 
   useEffect(() => {
     fetchStudents();
@@ -60,31 +58,53 @@ export const StudentList: React.FC = () => {
     }
   };
 
-  const handleAddStudent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStudentName.trim()) return;
-    await addStudent(newStudentName);
-    setNewStudentName('');
+  // Open Add Sheet
+  const openAddSheet = () => {
+      setTempStudentName('');
+      setIsAdding(true);
+      setSettingsStudent(null);
+  };
+
+  // Open Edit Sheet
+  const handleSettingsClick = (student: Student) => {
+    setSettingsStudent(student);
+    setTempStudentName(student.name);
     setIsAdding(false);
   };
 
-  const handleEditClick = (student: Student) => {
-    setEditingStudent(student);
-    setEditName(student.name);
+  const closeSheet = () => {
+      setIsAdding(false);
+      setSettingsStudent(null);
+      setTempStudentName('');
   };
 
-  const handleDeleteClick = async (student: Student) => {
+  const handleAddStudent = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!tempStudentName.trim()) return;
+    await addStudent(tempStudentName);
+    closeSheet();
+  };
+
+  // Direct swipe delete
+  const handleDeleteRequest = async (student: Student) => {
     if (confirm(`'${student.name}' 학생을 정말 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.`)) {
         await deleteStudent(student.id);
-        // If no students left, exit edit mode maybe? kept for now.
     }
   };
 
-  const handleSaveEdit = async () => {
-    if (editingStudent && editName.trim()) {
-        await updateStudent(editingStudent.id, editName);
-        setEditingStudent(null);
-    }
+  // Functions for Sheet
+  const handleUpdateStudentName = async () => {
+      if(settingsStudent && tempStudentName.trim()) {
+          await updateStudent(settingsStudent.id, tempStudentName);
+          closeSheet();
+      }
+  };
+
+  const handleDeleteFromSheet = async () => {
+      if(settingsStudent && confirm(`'${settingsStudent.name}' 학생을 삭제하시겠습니까? 되돌릴 수 없습니다.`)) {
+          await deleteStudent(settingsStudent.id);
+          closeSheet();
+      }
   };
 
   return (
@@ -92,7 +112,7 @@ export const StudentList: React.FC = () => {
       {/* Header */}
       <header className="mb-6 flex justify-between items-center sticky top-0 z-10 bg-slate-50/90 backdrop-blur-sm py-2">
         <div>
-            <h1 className="text-2xl font-bold text-gray-800">내 학급</h1>
+            <h1 className="text-2xl font-bold text-gray-800">나의 학급</h1>
             <p className="text-sm text-gray-500 mt-1">
                 {isEditMode ? '학생 순서를 변경하거나 관리하세요.' : '목표를 관리할 학생을 선택하세요.'}
             </p>
@@ -128,16 +148,14 @@ export const StudentList: React.FC = () => {
                          {students.map((student) => {
                             const studentGoals = goals.filter(g => g.student_id === student.id);
                             
-                            // Using SortableStudentItem for both modes.
-                            // Pass isEditMode to component to switch visual style/functionality
                             return (
                                 <SortableStudentItem 
                                     key={student.id}
                                     student={student}
                                     goals={studentGoals}
                                     isEditMode={isEditMode}
-                                    onEdit={handleEditClick}
-                                    onDelete={handleDeleteClick}
+                                    onEdit={handleSettingsClick}
+                                    onDelete={handleDeleteRequest}
                                 />
                             );
                         })}
@@ -145,84 +163,110 @@ export const StudentList: React.FC = () => {
                 </DndContext>
             
                 {/* Empty State */}
-                {students.length === 0 && !isAdding && (
+                {students.length === 0 && (
                     <div className="text-center py-10 text-gray-400">
                         등록된 학생이 없습니다.<br/>
-                        {isEditMode ? '아래 버튼을 눌러 학생을 추가해주세요.' : '우측 상단 [편집] 버튼을 눌러 학생을 추가해주세요.'}
+                        아래 버튼을 눌러 학생을 추가해주세요.
                     </div>
                 )}
                 
-                {/* Add Student Section (Visible only in Edit Mode) */}
-                {isEditMode && (
-                    isAdding ? (
-                        <form onSubmit={handleAddStudent} className="mt-4 p-6 bg-white rounded-2xl animate-fade-in border border-indigo-100 shadow-md">
-                            <h3 className="text-sm font-bold text-indigo-800 mb-4">새 학생 등록</h3>
-                            <input
-                            type="text"
-                            value={newStudentName}
-                            onChange={(e) => setNewStudentName(e.target.value)}
-                            placeholder="학생 이름 입력"
-                            className="w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4 bg-gray-50"
-                            autoFocus
-                            />
-                            <div className="flex gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setIsAdding(false)}
-                                className="flex-1 py-3 text-gray-500 bg-gray-100 rounded-xl font-bold hover:bg-gray-200"
-                            >
-                                취소
-                            </button>
-                            <button
-                                type="submit"
-                                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200"
-                            >
-                                추가하기
-                            </button>
-                            </div>
-                        </form>
-                    ) : (
-                        <button
-                            onClick={() => setIsAdding(true)}
-                            className="w-full mt-4 py-4 bg-white border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-indigo-300 hover:text-indigo-500 transition-all group"
-                        >
-                             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-500 transition-colors">
-                                <Plus size={20} />
-                            </div>
-                            <span>새 학생 추가하기</span>
-                        </button>
-                    )
-                )}
+                {/* Add Student Button (Always visible) */}
+                <button
+                    onClick={openAddSheet}
+                    className="w-full mt-4 py-4 bg-white border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-indigo-300 hover:text-indigo-500 transition-all group"
+                >
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-500 transition-colors">
+                        <Plus size={20} />
+                    </div>
+                    <span>학생 추가하기</span>
+                </button>
             </div>
         )}
       </main>
 
-      {/* Edit Name Modal (Only used in Edit Mode context) */}
-      {editingStudent && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={(e) => e.stopPropagation()}>
-              <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-scale-up">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">학생 이름 수정</h3>
-                  <input 
-                      type="text" 
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 focus:border-indigo-500 outline-none mb-6 font-bold"
-                      autoFocus
-                  />
+      {/* Unified Bottom Sheet (Add & Edit) */}
+      {(settingsStudent || isAdding) && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm animate-fade-in" onClick={closeSheet}>
+              <div 
+                className="bg-white w-full max-w-sm sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-slide-up"
+                onClick={e => e.stopPropagation()}
+              >
+                  <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 opacity-60" />
+                  
+                  {/* Title */}
+                  <h3 className="text-lg font-bold text-center text-gray-800 mb-6">
+                    {isAdding ? '학생 등록' : '학생 정보 수정'}
+                  </h3>
+
+                  {/* Header Section: Avatar */}
+                  <div className="mb-6 text-center">
+                      <div className="w-24 h-24 rounded-full bg-gray-100 mx-auto mb-3 overflow-hidden border-2 border-gray-100 relative group cursor-pointer shadow-inner">
+                          <img 
+                            src={
+                                isAdding 
+                                ? `https://ui-avatars.com/api/?name=${encodeURIComponent(tempStudentName || 'New')}&background=random` 
+                                : settingsStudent?.photo_uri
+                            } 
+                            alt="" 
+                            className="w-full h-full object-cover" 
+                          />
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                              <Camera size={24} className="text-white opacity-80" />
+                          </div>
+                      </div>
+                      <p className="text-xs text-gray-400 font-medium">사진을 터치하여 변경하세요</p>
+                  </div>
+                  
+                  {/* Name Input Section */}
+                  <div className="mb-8">
+                      <label className="text-xs font-bold text-gray-500 mb-2 block ml-1">이름</label>
+                      <input 
+                          type="text" 
+                          value={tempStudentName} 
+                          onChange={e => setTempStudentName(e.target.value)}
+                          className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-lg font-bold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-gray-300"
+                          placeholder="학생 이름을 입력하세요"
+                          autoFocus
+                      />
+                  </div>
+                  
+                  {/* Actions Section */}
                   <div className="flex gap-3">
+                      {!isAdding && (
+                        <button 
+                            onClick={handleDeleteFromSheet}
+                            className="p-4 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                            aria-label="삭제"
+                        >
+                            <Trash2 size={24} />
+                        </button>
+                      )}
+                      
                       <button 
-                          onClick={() => setEditingStudent(null)}
-                          className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold"
+                        onClick={() => isAdding ? handleAddStudent() : handleUpdateStudentName()}
+                        disabled={!tempStudentName.trim()}
+                        className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                       >
-                          취소
-                      </button>
-                      <button 
-                          onClick={handleSaveEdit}
-                          className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold"
-                      >
-                          저장
+                          {isAdding ? (
+                              <>
+                                <Plus size={20} strokeWidth={3} />
+                                <span>등록하기</span>
+                              </>
+                          ) : (
+                              <>
+                                <Edit2 size={20} strokeWidth={3} />
+                                <span>수정 완료</span>
+                              </>
+                          )}
                       </button>
                   </div>
+                  
+                  <button 
+                    onClick={closeSheet}
+                    className="w-full mt-6 py-2 text-gray-400 text-sm font-bold hover:text-gray-600 transition-colors"
+                  >
+                      닫기
+                  </button>
               </div>
           </div>
       )}

@@ -115,7 +115,8 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
           case 'on_hold':
               return `${base} bg-gray-200 text-gray-400`;
           default:
-              return `${base} ${goal.icon && goal.icon !== 'target' ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`;
+              // Changed: Always use Indigo theme for in_progress goals, even for the default target icon
+              return `${base} bg-indigo-50 text-indigo-600`;
       }
   };
 

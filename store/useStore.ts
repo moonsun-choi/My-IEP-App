@@ -30,7 +30,7 @@ interface ExtendedAppState extends AppState {
 
     reorderGoals: (studentId: string, goals: Goal[]) => Promise<void>;
     fetchAllGoals: () => Promise<void>;
-    addGoal: (studentId: string, title: string, icon?: string, status?: GoalStatus) => Promise<void>;
+    addGoal: (studentId: string, title: string, description?: string, icon?: string, status?: GoalStatus) => Promise<void>;
     updateGoal: (goalId: string, title: string, description?: string, icon?: string, status?: GoalStatus) => Promise<void>;
     recordTrial: (goalId: string, value: number, promptLevel: PromptLevel, mediaUri?: string | File, notes?: string) => Promise<void>;
     updateLog: (logId: string, goalId: string, value: number, promptLevel: PromptLevel, timestamp: number, mediaUri?: string | File, notes?: string) => Promise<void>;
@@ -211,9 +211,9 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             }
         },
 
-        addGoal: async (studentId: string, title: string, icon?: string, status?: GoalStatus) => {
+        addGoal: async (studentId: string, title: string, description?: string, icon?: string, status?: GoalStatus) => {
             try {
-            await db.addGoal(studentId, title, icon, status);
+            await db.addGoal(studentId, title, description, icon, status);
             await get().fetchGoals(studentId);
             markDirty();
             toast.success('목표 추가됨');

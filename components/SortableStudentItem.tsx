@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, GripVertical, Trash2, Edit2, Target, PlayCircle } from 'lucide-react';
+import { User, GripVertical, Trash2, Edit2, Target, PlayCircle, X } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Student, Goal } from '../types';
@@ -36,7 +36,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
 
   const navigate = useNavigate();
 
-  // --- Swipe Logic ---
+  // --- Swipe Logic (Retained as backup, but UI focuses on X button now) ---
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchOffset, setTouchOffset] = useState(0);
   const minSwipeDistance = 80;
@@ -60,9 +60,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
   const handleTouchEnd = () => {
       if (!isEditMode || touchStart === null) return;
       
-      if (touchOffset > minSwipeDistance) {
-          onEdit(student);
-      } else if (touchOffset < -minSwipeDistance) {
+      if (touchOffset < -minSwipeDistance) {
           onDelete(student);
       }
       
@@ -79,6 +77,10 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
 
   const handleCardClick = () => {
       if (isDragging) return;
+      
+      // Logic Change: 
+      // Edit Mode -> Open Settings Sheet (formerly handled by onSettings)
+      // Normal Mode -> Navigate to Detail
       if (isEditMode) {
           onEdit(student);
       } else {
@@ -88,15 +90,10 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
 
   return (
     <div className="relative group touch-none mb-1">
-      {/* Background Actions (Swipe Reveal) - Only visible when swiping in Edit Mode */}
+      {/* Background Actions (Swipe Reveal) - Only Delete is relevant for swipe now */}
       {isEditMode && (
          <div className="absolute inset-0 rounded-2xl flex overflow-hidden shadow-inner bg-gray-100">
-             <div 
-                className="flex-1 bg-blue-500 flex items-center justify-start pl-6 text-white transition-opacity duration-200"
-                style={{ opacity: touchOffset > 0 ? Math.min(touchOffset / 60, 1) : 0 }}
-             >
-                 <Edit2 size={24} />
-             </div>
+             <div className="flex-1" /> {/* Spacer */}
              <div 
                 className="flex-1 bg-red-500 flex items-center justify-end pr-6 text-white transition-opacity duration-200"
                 style={{ opacity: touchOffset < 0 ? Math.min(Math.abs(touchOffset) / 60, 1) : 0 }}
@@ -136,6 +133,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
                 {...listeners}
                 {...attributes}
                 className="text-indigo-400 p-2 -ml-3 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center bg-gray-50 rounded-lg hover:bg-indigo-50 mr-1"
+                onClick={(e) => e.stopPropagation()}
             >
                <GripVertical size={24} />
             </div>
@@ -154,6 +152,13 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
             <div className="w-full h-full flex items-center justify-center bg-indigo-50 text-indigo-300 absolute inset-0 -z-10">
               <User size={24} />
             </div>
+            
+            {/* Overlay Icon in Edit Mode to suggest editing */}
+            {isEditMode && (
+                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <Edit2 size={16} className="text-white" />
+                </div>
+            )}
         </div>
 
         <div className="flex-1 min-w-0">
@@ -170,6 +175,20 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
                </div>
           </div>
         </div>
+
+        {/* Delete Button (Red X) - Visible ONLY in Edit Mode */}
+        {isEditMode && (
+            <button
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(student);
+                }}
+                className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full shadow-md hover:bg-red-600 active:scale-95 transition-all z-20"
+                aria-label="Delete Student"
+            >
+                <X size={14} strokeWidth={3} />
+            </button>
+        )}
       </div>
     </div>
   );
