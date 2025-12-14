@@ -1,14 +1,19 @@
+
 import React from 'react';
 import { ObservationLog, PromptLevel } from '../types';
 import { Edit2, Paperclip, MessageSquare } from 'lucide-react';
+import { getGoalIcon } from '../utils/goalIcons';
 
 interface LogCardProps {
   log: ObservationLog;
+  goalTitle?: string; // Optional: Show goal title context
+  goalIcon?: string;  // Optional: Show goal icon
   onClick: (log: ObservationLog) => void;
 }
 
-export const LogCard: React.FC<LogCardProps> = ({ log, onClick }) => {
+export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick }) => {
   const value = log.value ?? log.accuracy ?? 0;
+  const GoalIconComponent = getGoalIcon(goalIcon);
 
   const getPromptLabel = (level: PromptLevel) => {
     const map: Record<string, string> = {
@@ -37,9 +42,10 @@ export const LogCard: React.FC<LogCardProps> = ({ log, onClick }) => {
   return (
     <button 
       onClick={() => onClick(log)}
-      className="w-full bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between active:scale-[0.99] hover:shadow-md transition-all group"
+      className="w-full bg-white p-3 md:p-4 rounded-2xl border border-gray-100 flex items-center justify-between active:scale-[0.99] hover:shadow-md transition-all group"
     >
-      <div className="flex items-center gap-4 w-full">
+      <div className="flex items-center gap-3 md:gap-4 w-full">
+        {/* Value Box */}
         <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold relative overflow-hidden shrink-0 transition-transform group-hover:scale-105 ${getValueColorClass(value)}`}>
           {log.media_uri && (
             <img src={log.media_uri} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
@@ -49,7 +55,19 @@ export const LogCard: React.FC<LogCardProps> = ({ log, onClick }) => {
             <span className="text-[9px] opacity-70">%</span>
           </div>
         </div>
+
+        {/* Info Area */}
         <div className="text-left flex-1 min-w-0">
+          {/* Goal Context (Icon + Title) */}
+          {(goalTitle) && (
+             <div className="flex items-center gap-1.5 mb-1.5 text-gray-800">
+                 <div className="p-1 bg-gray-100 rounded-md text-gray-500">
+                    <GoalIconComponent size={12} />
+                 </div>
+                 <span className="text-xs font-bold truncate">{goalTitle}</span>
+             </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${getPromptColor(log.promptLevel)}`}>
               {getPromptLabel(log.promptLevel)}
@@ -67,17 +85,20 @@ export const LogCard: React.FC<LogCardProps> = ({ log, onClick }) => {
               </span>
             )}
           </div>
-          <div className="text-xs text-gray-400 font-medium">
-            {new Date(log.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })}
+          
+          <div className="flex items-center justify-between mt-1">
+            <div className="text-[10px] text-gray-400 font-medium">
+                {new Date(log.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })}
+            </div>
+            {log.notes && (
+                <p className="text-[10px] text-gray-500 truncate max-w-[120px] ml-2">
+                {log.notes}
+                </p>
+            )}
           </div>
-          {log.notes && (
-            <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">
-              {log.notes}
-            </p>
-          )}
         </div>
       </div>
-      <Edit2 size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+      <Edit2 size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors ml-2" />
     </button>
   );
 };

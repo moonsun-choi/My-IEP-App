@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Target, Cloud, Upload, Download, Loader2, BookOpen, LogOut, ChevronRight } from 'lucide-react';
+import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
 
@@ -96,13 +96,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: '대시보드', path: '/' },
-    { icon: Target, label: '목표 관리', path: '/students' },
+    { icon: Users, label: '내 학급', path: '/students' },
     { icon: CheckSquare, label: '관찰 기록', path: '/tracker' },
     { icon: BarChart2, label: '보고서', path: '/reports' },
   ];
 
   const getPageTitle = () => {
-    if (location.pathname.startsWith('/student/')) return '목표 상세 관리';
+    if (location.pathname.startsWith('/student/')) return '개별화교육(IEP) 상세';
     const current = menuItems.find(item => item.path === location.pathname);
     return current ? current.label : 'My IEP App';
   };
@@ -230,7 +230,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 )}
             </div>
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.0.0 (Beta)</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.0 (Beta)</p>
             </div>
         </div>
       </div>

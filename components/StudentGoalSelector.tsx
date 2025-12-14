@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { ChevronDown, Target } from 'lucide-react';
 import { Student, Goal } from '../types';
+import { getGoalIcon } from '../utils/goalIcons';
 
 interface StudentGoalSelectorProps {
   students: Student[];
@@ -23,6 +25,9 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
   currentStudent,
   showAllGoalsOption = false,
 }) => {
+  const currentGoal = goals.find(g => g.id === selectedGoalId);
+  const GoalIcon = currentGoal ? getGoalIcon(currentGoal.icon) : Target;
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* Student Selector */}
@@ -46,7 +51,7 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
       {/* Goal Selector */}
       <div className="flex-[2] bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3 transition-all hover:border-indigo-300 hover:shadow-md cursor-pointer group">
         <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-100">
-          {showAllGoalsOption ? <Target size={20} /> : <div className="border-[3px] border-current rounded-full w-4 h-4" />}
+          {showAllGoalsOption && selectedGoalId === 'all' ? <Target size={20} /> : <GoalIcon size={20} />}
         </div>
         <div className="flex-1 min-w-0">
           <select 

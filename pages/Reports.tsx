@@ -1,7 +1,9 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { AlertCircle, TrendingUp, TrendingDown, Minus, Trophy } from 'lucide-react';
 import { StudentGoalSelector } from '../components/StudentGoalSelector';
+import { getGoalIcon } from '../utils/goalIcons';
 
 export const Reports: React.FC = () => {
   const { students, goals, logs, fetchStudents, fetchGoals, fetchStudentLogs } = useStore();
@@ -398,7 +400,15 @@ export const Reports: React.FC = () => {
                 <div>
                     <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                         {analysisResult.title}
-                        {selectedGoalId !== 'all' && <span className="text-xs font-normal opacity-70 border border-current px-2 py-0.5 rounded-full">{currentGoal?.title}</span>}
+                        {selectedGoalId !== 'all' && (
+                            <span className="text-xs font-normal opacity-70 border border-current px-2 py-0.5 rounded-full flex items-center gap-1">
+                                {(() => {
+                                    const GoalIcon = currentGoal ? getGoalIcon(currentGoal.icon) : null;
+                                    return GoalIcon && <GoalIcon size={12} />;
+                                })()}
+                                {currentGoal?.title}
+                            </span>
+                        )}
                     </h3>
                     <p className="leading-relaxed text-sm md:text-base opacity-90 font-medium">
                         {analysisResult.message}

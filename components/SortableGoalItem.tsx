@@ -1,42 +1,12 @@
 
 import React, { useState } from 'react';
 import { 
-  GripVertical, Trash2, Edit2,
-  Target, MessageCircle, Mic, Ear, Users, Smile, Heart, Handshake, 
-  Brain, BookOpen, Pencil, Calculator, Palette, Scissors, Footprints, 
-  Dumbbell, Utensils, Shirt, Droplet, Bed, Clock, Bus, ShoppingCart, Smartphone,
-  Check, Pause
+  GripVertical, Trash2, Edit2, Check, Pause, Target
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Goal } from '../types';
-
-export const GOAL_ICONS: Record<string, React.ElementType> = {
-  target: Target,
-  communication: MessageCircle,
-  speech: Mic,
-  listening: Ear,
-  social: Users,
-  emotion: Smile,
-  relationship: Heart,
-  greeting: Handshake,
-  cognitive: Brain,
-  reading: BookOpen,
-  writing: Pencil,
-  math: Calculator,
-  art: Palette,
-  motor_fine: Scissors,
-  motor_gross: Footprints,
-  exercise: Dumbbell,
-  eating: Utensils,
-  dressing: Shirt,
-  hygiene: Droplet,
-  sleep: Bed,
-  time: Clock,
-  transport: Bus,
-  community: ShoppingCart,
-  digital: Smartphone
-};
+import { GOAL_ICONS, getGoalIcon } from '../utils/goalIcons';
 
 interface SortableGoalItemProps {
   goal: Goal;
@@ -109,7 +79,7 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
   };
 
   // Determine Icon Component
-  const IconComponent = GOAL_ICONS[goal.icon || 'target'] || Target;
+  const IconComponent = getGoalIcon(goal.icon);
   const status = goal.status || 'in_progress';
 
   // --- Visual Logic ---

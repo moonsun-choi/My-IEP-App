@@ -1,8 +1,10 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { Target, ChevronRight, Settings, BarChart2, X, CheckSquare, Sparkles, ArrowRight, Activity, CalendarClock } from 'lucide-react';
+import { Target, ChevronRight, Settings, BarChart2, X, CheckSquare, Sparkles, ArrowRight, Activity, CalendarClock, Users } from 'lucide-react';
 import { WidgetType } from '../types';
+import { getGoalIcon } from '../utils/goalIcons';
 
 export const Dashboard: React.FC = () => {
   const { students, logs, fetchStudents, activeWidgets, fetchWidgets, toggleWidget } = useStore();
@@ -62,9 +64,9 @@ export const Dashboard: React.FC = () => {
           path: '/tracker'
       },
       students: {
-          label: '목표 관리',
-          desc: '개별 목표 설정 및 수정',
-          icon: Target,
+          label: '내 학급',
+          desc: '학생 명단 및 목표 설정',
+          icon: Users,
           color: 'bg-indigo-100 text-indigo-600',
           path: '/students'
       },
@@ -229,25 +231,33 @@ export const Dashboard: React.FC = () => {
         </div>
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 divide-y divide-gray-100 overflow-hidden">
             {logs.length > 0 ? logs.sort((a,b) => b.timestamp - a.timestamp).slice(0, 3).map((log) => {
-                const student = students.find(s => {
-                    const goal = useStore.getState().goals.find(g => g.id === log.goal_id);
-                    return goal?.student_id === s.id;
-                });
+                const goal = useStore.getState().goals.find(g => g.id === log.goal_id);
+                const student = students.find(s => s.id === goal?.student_id);
+                const GoalIcon = getGoalIcon(goal?.icon);
+
                 return (
                     <div key={log.id} className="p-4 md:p-5 flex items-center gap-4 hover:bg-gray-50 transition-colors">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
+                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
                              {student ? <img src={student.photo_uri} alt="" className="w-full h-full object-cover"/> : <Target size={18} className="text-gray-400"/>}
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="font-bold text-gray-800 truncate">
                                 {student ? student.name : 'Unknown'} 
-                                <span className="font-normal text-gray-500 ml-2 text-sm">
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                {goal && (
+                                    <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-[10px] text-gray-500 font-medium truncate max-w-[120px]">
+                                        <GoalIcon size={10} />
+                                        <span className="truncate">{goal.title}</span>
+                                    </div>
+                                )}
+                                <span className="text-xs text-indigo-600 font-bold">
                                     {log.measurementType === 'accuracy' ? `정확도 ${log.value}%` : '기록됨'}
                                 </span>
                             </div>
-                            <div className="text-xs text-gray-400 mt-0.5">
-                                {new Date(log.timestamp).toLocaleString()}
-                            </div>
+                        </div>
+                        <div className="text-xs text-gray-400 whitespace-nowrap">
+                            {new Date(log.timestamp).toLocaleDateString()}
                         </div>
                     </div>
                 );

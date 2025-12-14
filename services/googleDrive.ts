@@ -16,6 +16,13 @@ const env = (import.meta as any).env || {};
 const CLIENT_ID = env.VITE_GOOGLE_CLIENT_ID || '';
 const API_KEY = env.VITE_GOOGLE_API_KEY || '';
 
+// Debug logging to verify configuration loading
+console.log('Google Drive Config:', {
+    hasClientId: !!CLIENT_ID,
+    hasApiKey: !!API_KEY,
+    clientIdLength: CLIENT_ID.length
+});
+
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const BACKUP_FILE_NAME = 'my-iep-backup.json';

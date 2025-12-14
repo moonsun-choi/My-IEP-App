@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { ObservationLog, PromptLevel, MeasurementType } from '../types';
@@ -111,6 +112,17 @@ export const DailyData: React.FC = () => {
     }
   };
 
+  // Helper to find goal info for a log
+  const getLogGoalInfo = (log: ObservationLog) => {
+      // First try current goal
+      if (log.goal_id === selectedGoalId && currentGoal) {
+          return { title: currentGoal.title, icon: currentGoal.icon };
+      }
+      // If not (e.g. in mixed history), find in goals array
+      const g = goals.find(g => g.id === log.goal_id);
+      return g ? { title: g.title, icon: g.icon } : { title: 'Unknown Goal', icon: 'target' };
+  };
+
   if (!currentStudent) return <div className="p-8 text-center text-gray-500">데이터 로딩 중...</div>;
 
   return (
@@ -170,9 +182,10 @@ export const DailyData: React.FC = () => {
                     </p>
                 </div>
             )}
-            {recentLogs.map((log) => (
-                <LogCard key={log.id} log={log} onClick={handleEditLog} />
-            ))}
+            {recentLogs.map((log) => {
+                const info = getLogGoalInfo(log);
+                return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} />;
+            })}
             
             {sortedLogs.length > 5 && (
                  <button 
@@ -252,9 +265,10 @@ export const DailyData: React.FC = () => {
                             <p className="text-sm">조건에 맞는 기록이 없습니다.</p>
                         </div>
                     ) : (
-                        filteredHistoryLogs.map((log) => (
-                             <LogCard key={log.id} log={log} onClick={handleEditLog} />
-                        ))
+                        filteredHistoryLogs.map((log) => {
+                             const info = getLogGoalInfo(log);
+                             return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} />
+                        })
                     )}
                   </div>
               </div>
