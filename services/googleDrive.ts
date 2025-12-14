@@ -26,6 +26,7 @@ console.log('Google Drive Config:', {
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const BACKUP_FILE_NAME = 'my-iep-backup.json';
+const MEDIA_FOLDER_NAME = 'MyIEP_Media';
 
 let tokenClient: any;
 let gapiInited = false;
@@ -141,7 +142,7 @@ export const googleDriveService = {
       await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
         method: 'PATCH',
         headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-        body: createMultipartBody(metadata, jsonData) // Simplified update
+        body: createMultipartBody(metadata, jsonData) 
       });
     } else {
       // Create new
@@ -162,7 +163,6 @@ export const googleDriveService = {
     if (!googleDriveService.isConfigured()) {
         console.log("Simulating Cloud Download");
         await new Promise(r => setTimeout(r, 1500));
-        // Return null or mock data
         return null; 
     }
 
@@ -179,17 +179,107 @@ export const googleDriveService = {
       return JSON.stringify(fileRes.result);
     }
     return null;
+  },
+
+  // --- NEW: Media Upload Helpers ---
+
+  // Helper: Get or Create 'MyIEP_Media' folder
+  ensureMediaFolder: async (): Promise<string> => {
+    const q = `name = '${MEDIA_FOLDER_NAME}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    const response = await window.gapi.client.drive.files.list({ q, fields: 'files(id)' });
+    const files = response.result.files;
+
+    if (files && files.length > 0) {
+        return files[0].id;
+    } else {
+        const metadata = {
+            name: MEDIA_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder',
+        };
+        const createRes = await window.gapi.client.drive.files.create({ resource: metadata, fields: 'id' });
+        return createRes.result.id;
+    }
+  },
+
+  // Helper: Convert File to Base64 (Fallback)
+  fileToBase64: (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+    });
+  },
+
+  // Upload Media File (Image/Video)
+  uploadMedia: async (file: File): Promise<string> => {
+    // 1. Check Auth & Config. If invalid, fallback to Base64 (Local storage)
+    if (!googleDriveService.isConfigured()) {
+        console.warn("Google Drive not configured. Saving media locally (Base64). Warning: Size limits apply.");
+        return googleDriveService.fileToBase64(file);
+    }
+
+    const token = window.gapi.client.getToken();
+    if (!token) {
+        console.warn("Not logged in. Saving media locally (Base64).");
+        return googleDriveService.fileToBase64(file);
+    }
+
+    try {
+        const accessToken = token.access_token;
+        const folderId = await googleDriveService.ensureMediaFolder();
+
+        const metadata = {
+            name: file.name,
+            mimeType: file.type,
+            parents: [folderId]
+        };
+
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', file);
+
+        // Upload
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webContentLink,webViewLink', {
+            method: 'POST',
+            headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
+            body: form
+        });
+        
+        if (!res.ok) throw new Error("Upload failed");
+        
+        const data = await res.json();
+        const fileId = data.id;
+
+        // Note: 'webContentLink' allows direct download/display, but requires appropriate permissions.
+        // 'drive.file' scope grants access to files created by this app, so the user can view it.
+        // However, for an <img> tag to work cross-origin without auth headers, the file usually needs public sharing
+        // OR we use the thumbnailLink (which is often accessible) or webContentLink with logged-in browser session.
+        // For simplicity in this 'personal' app, we use webContentLink. 
+        // If <img> fails to load due to CORs/Auth, we might need a proxy or use Google Drive Embed API.
+        
+        // Let's try to get a thumbnail link which is more friendly for UI display
+        const getFileRes = await window.gapi.client.drive.files.get({
+            fileId: fileId,
+            fields: 'webContentLink, thumbnailLink'
+        });
+        
+        // Prefer webContentLink (full quality) but fallback to thumbnail if needed. 
+        // Note: webContentLink sometimes forces download. thumbnailLink is often better for previews.
+        // Let's store webContentLink but if it's an image, maybe we want the thumbnail for list views?
+        // We will return webContentLink as the primary URI.
+        return getFileRes.result.webContentLink || getFileRes.result.thumbnailLink || "";
+
+    } catch (e) {
+        console.error("Upload error:", e);
+        // Fallback on error
+        return googleDriveService.fileToBase64(file);
+    }
   }
 };
 
 // Helper for Google Drive API Multipart Upload
 function createMultipartBody(metadata: any, content: string) {
-    // For text files, a simple text body often works for PATCH if content-type is set correctly,
-    // but the proper way for 'multipart' uploadType involves boundaries.
-    // Given the constraints and library usage, we'll keep it simple for now.
-    // Ideally, this should construct a proper multipart/related body.
-    
-    // Minimal Polyfill for Multipart body construction if needed in future:
     const boundary = '-------314159265358979323846';
     const delimiter = "\r\n--" + boundary + "\r\n";
     const close_delim = "\r\n--" + boundary + "--";

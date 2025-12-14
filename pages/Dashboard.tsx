@@ -2,14 +2,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { Target, ChevronRight, Settings, BarChart2, X, CheckSquare, Sparkles, ArrowRight, Activity, CalendarClock, Users } from 'lucide-react';
+import { Target, ChevronRight, Settings, BarChart2, X, CheckSquare, Sparkles, ArrowRight, Activity, CalendarClock, Users, LogOut } from 'lucide-react';
 import { WidgetType } from '../types';
 import { getGoalIcon } from '../utils/goalIcons';
+import { useBackExit } from '../hooks/useBackExit';
 
 export const Dashboard: React.FC = () => {
   const { students, logs, fetchStudents, activeWidgets, fetchWidgets, toggleWidget } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const navigate = useNavigate();
+
+  // Android Back Button Exit Logic
+  const { showExitConfirm, confirmExit, cancelExit } = useBackExit();
 
   useEffect(() => {
     fetchStudents();
@@ -325,6 +329,35 @@ export const Dashboard: React.FC = () => {
                   </button>
               </div>
           </div>
+      )}
+
+      {/* Exit Confirmation Modal (Triggered by Back Button Trap) */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-[99] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+            <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-scale-up text-center">
+                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <LogOut size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">앱을 종료하시겠습니까?</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                    현재 화면에서 나가면 앱이 종료됩니다.
+                </p>
+                <div className="flex gap-3">
+                    <button 
+                        onClick={cancelExit}
+                        className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                    >
+                        취소
+                    </button>
+                    <button 
+                        onClick={confirmExit}
+                        className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-colors"
+                    >
+                        종료
+                    </button>
+                </div>
+            </div>
+        </div>
       )}
     </div>
   );

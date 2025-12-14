@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen, LogOut, AlertTriangle } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
 
@@ -12,63 +12,22 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate(); // Added useNavigate
   const { exportData, importData } = useStore();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
   
-  // Exit Confirm Modal State
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-
   useEffect(() => {
     googleDriveService.init(() => {
         // Check if previously logged in logic could go here
     });
   }, []);
 
-  // Close sidebar automatically when route changes (e.g. back button pressed)
+  // Close sidebar automatically when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location]);
-
-  // --- Back Button & Exit Logic ---
-  useEffect(() => {
-    // Only apply this logic on the Home (Dashboard) screen
-    if (location.pathname === '/') {
-      // Push a dummy state to the history stack. 
-      // This ensures that when the user presses 'Back', they pop this state 
-      // but stay on the same URL, firing the 'popstate' event.
-      window.history.pushState(null, '', window.location.href);
-
-      const handlePopState = (event: PopStateEvent) => {
-        // Prevent default browser navigation behavior effectively by having trapped it
-        // Show the exit confirmation modal
-        setShowExitConfirm(true);
-      };
-
-      window.addEventListener('popstate', handlePopState);
-
-      return () => {
-        window.removeEventListener('popstate', handlePopState);
-      };
-    }
-  }, [location.pathname]);
-
-  const handleConfirmExit = () => {
-      // Attempt to close the window (Works in PWA/WebView, might be blocked in standard browser tab)
-      window.close();
-      // Fallback: If window.close() fails/is ignored, we might redirect or just let it be.
-      // In a pure web context, you can't force close a tab script-wise unless opened by script.
-  };
-
-  const handleCancelExit = () => {
-      setShowExitConfirm(false);
-      // Re-push the state so the trap is active again for the next back press
-      window.history.pushState(null, '', window.location.href);
-  };
-  // --------------------------------
 
   const handleGoogleLogin = async () => {
       try {
@@ -308,35 +267,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </main>
       </div>
-
-      {/* Exit Confirmation Modal */}
-      {showExitConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
-            <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-scale-up text-center">
-                <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <LogOut size={24} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">앱을 종료하시겠습니까?</h3>
-                <p className="text-sm text-gray-500 mb-6">
-                    저장되지 않은 작업이 있다면 잃을 수 있습니다.
-                </p>
-                <div className="flex gap-3">
-                    <button 
-                        onClick={handleCancelExit}
-                        className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
-                    >
-                        취소
-                    </button>
-                    <button 
-                        onClick={handleConfirmExit}
-                        className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-red-200 transition-colors"
-                    >
-                        종료
-                    </button>
-                </div>
-            </div>
-        </div>
-      )}
     </div>
   );
 };

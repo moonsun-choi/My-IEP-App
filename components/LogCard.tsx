@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ObservationLog, PromptLevel } from '../types';
-import { Edit2, Paperclip, MessageSquare } from 'lucide-react';
+import { Edit2, Paperclip, MessageSquare, Video } from 'lucide-react';
 import { getGoalIcon } from '../utils/goalIcons';
 
 interface LogCardProps {
@@ -14,6 +14,7 @@ interface LogCardProps {
 export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick }) => {
   const value = log.value ?? log.accuracy ?? 0;
   const GoalIconComponent = getGoalIcon(goalIcon);
+  const isVideo = log.media_uri?.startsWith('data:video');
 
   const getPromptLabel = (level: PromptLevel) => {
     const map: Record<string, string> = {
@@ -48,7 +49,11 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
         {/* Value Box */}
         <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold relative overflow-hidden shrink-0 transition-transform group-hover:scale-105 ${getValueColorClass(value)}`}>
           {log.media_uri && (
-            <img src={log.media_uri} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+            isVideo ? (
+                <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline />
+            ) : (
+                <img src={log.media_uri} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+            )
           )}
           <div className="relative z-10 flex flex-col items-center">
             <span className="text-lg">{value}</span>
@@ -74,8 +79,8 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
             </span>
             {log.media_uri && (
               <span className="bg-indigo-50 text-indigo-500 border border-indigo-100 rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 font-bold">
-                <Paperclip size={10} />
-                자료
+                {isVideo ? <Video size={10} /> : <Paperclip size={10} />}
+                {isVideo ? '영상' : '자료'}
               </span>
             )}
             {log.notes && (
