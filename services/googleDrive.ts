@@ -3,6 +3,9 @@
 // Note: To make this work, you must create a project in Google Cloud Console,
 // enable the "Google Drive API", and create an OAuth 2.0 Client ID (Web Application).
 
+import { Capacitor } from '@capacitor/core';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+
 declare global {
   interface Window {
     gapi: any;
@@ -56,8 +59,11 @@ export const googleDriveService = {
     return !!CLIENT_ID && !!API_KEY && !CLIENT_ID.includes('YOUR_CLIENT_ID');
   },
 
-  // Check if scripts are fully loaded
+  // Check if scripts are fully loaded (Native considers 'gapi' enough)
   isReady: () => {
+      if (Capacitor.isNativePlatform()) {
+          return gapiInited;
+      }
       return gapiInited && gisInited;
   },
 
@@ -69,18 +75,52 @@ export const googleDriveService = {
         return;
     }
 
+    // --- NATIVE PLATFORM INITIALIZATION ---
+    if (Capacitor.isNativePlatform()) {
+        try {
+            // 1. Load GAPI (Still needed for Drive API calls like list/create)
+            await loadScript('https://apis.google.com/js/api.js');
+            await new Promise<void>((resolve) => window.gapi.load('client', resolve));
+            
+            // 2. Init GAPI Client (API Key only, Auth comes from plugin later)
+            if (googleDriveService.isConfigured()) {
+                await window.gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+            }
+
+            // 3. Init Native Plugin
+            // Note: clientId here is mainly for Web fallback of the plugin, 
+            // Android/iOS read from capacitor.config.json usually, but passing it is safe.
+            GoogleAuth.initialize({
+                clientId: CLIENT_ID,
+                scopes: ['https://www.googleapis.com/auth/drive.file'],
+                grantOfflineAccess: true,
+            });
+
+            gapiInited = true;
+            if (onInitCallback) onInitCallback();
+            return;
+
+        } catch (e) {
+            console.error("Native Init Error:", e);
+            throw e;
+        }
+    }
+
+    // --- WEB PLATFORM INITIALIZATION (Existing Logic) ---
     try {
-        // 1. Load Scripts Dynamically (Robust for Mobile)
         await Promise.all([
             loadScript('https://apis.google.com/js/api.js'),
             loadScript('https://accounts.google.com/gsi/client')
         ]);
     } catch (e) {
-        console.error("Failed to load Google Scripts. Check network connection.", e);
+        console.error("Failed to load Google Scripts.", e);
         throw new Error("Network error loading Google Scripts");
     }
 
-    // 2. Wait for global objects
+    // Wait for global objects
     let attempts = 0;
     while ((typeof window.gapi === 'undefined' || typeof window.google === 'undefined') && attempts < 50) {
         await wait(100);
@@ -91,7 +131,7 @@ export const googleDriveService = {
          throw new Error("Google global objects not found");
     }
 
-    // 3. Init GAPI
+    // Init GAPI
     const gapiLoaded = new Promise<void>((resolve, reject) => {
       window.gapi.load('client', async () => {
         try {
@@ -105,14 +145,12 @@ export const googleDriveService = {
             resolve();
         } catch(e) {
             console.error("GAPI Init Error", e);
-            // CRITICAL CHANGE: Do NOT set gapiInited = true here.
-            // Rejecting allows the UI to catch the error and lets the user retry later.
             reject(e);
         }
       });
     });
 
-    // 4. Init GIS
+    // Init GIS
     const gisLoaded = new Promise<void>((resolve) => {
       if (googleDriveService.isConfigured()) {
           try {
@@ -137,10 +175,31 @@ export const googleDriveService = {
 
   // Trigger Google Login
   login: async (): Promise<string> => {
+    // --- NATIVE LOGIN ---
+    if (Capacitor.isNativePlatform()) {
+        try {
+            const user = await GoogleAuth.signIn();
+            
+            // The plugin returns an authentication object
+            // For Drive API to work, we must manually set the access token into GAPI
+            const accessToken = user.authentication.accessToken;
+            
+            if (!accessToken) throw new Error("Native login failed to retrieve Access Token");
+            
+            // Bridge Native Auth -> GAPI Client
+            window.gapi.client.setToken({ access_token: accessToken });
+            
+            return accessToken;
+        } catch (e: any) {
+            console.error("Native Login Error:", e);
+            throw new Error(e.message || "Native Login Failed");
+        }
+    }
+
+    // --- WEB LOGIN (Existing) ---
     // Wait until ready if called too early
     if (!tokenClient && googleDriveService.isConfigured()) {
         if (!gisInited) {
-            // Attempt to re-initialize if called before ready
             throw new Error("Google 서비스 초기화 중입니다. 잠시 후 다시 시도해주세요.");
         }
     }
@@ -156,7 +215,6 @@ export const googleDriveService = {
           return;
       }
 
-      // Handle the token response
       tokenClient.callback = async (resp: any) => {
         if (resp.error) {
           reject(resp);
@@ -165,10 +223,7 @@ export const googleDriveService = {
         resolve(resp.access_token);
       };
 
-      // Request token.
       try {
-          // 'prompt' option can sometimes cause issues on mobile if popup is blocked.
-          // We rely on the user click event bubbling up.
           tokenClient.requestAccessToken({ prompt: 'consent' });
       } catch (e) {
           reject(e);
