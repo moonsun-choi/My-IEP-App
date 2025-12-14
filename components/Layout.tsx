@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen, CloudOff, AlertTriangle, RefreshCw } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
+import toast from 'react-hot-toast';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,15 +12,16 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
   const location = useLocation();
   const { isLoggedIn, isOnline, syncStatus, setLoggedIn, setOnlineStatus, syncCloudToLocal, syncLocalToCloud } = useStore();
 
   useEffect(() => {
     // 1. Init Google Drive
     googleDriveService.init(() => {
-        // We could verify login status here if token exists in session storage
-        // But Google GIS 'requestAccessToken' with empty prompt usually handles silent auth if possible,
-        // or we just wait for user to click login.
+        // Callback when ready
+        setIsGoogleScriptReady(true);
+        console.log("Google Service Initialized");
     });
 
     // 2. Setup Online/Offline listeners
@@ -38,26 +40,46 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
   }, [setOnlineStatus]);
 
+  // 3. Protect against accidental closure during sync
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        if (syncStatus === 'syncing') {
+            e.preventDefault();
+            // Standard message for legacy browsers (modern browsers ignore the message but show a generic prompt)
+            e.returnValue = '데이터 동기화 중입니다. 앱을 종료하면 변경사항이 저장되지 않을 수 있습니다.';
+        }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [syncStatus]);
+
   // Close sidebar automatically when route changes
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location]);
 
   const handleGoogleLogin = async () => {
+      if (!isGoogleScriptReady) {
+          toast.loading("Google 서비스 준비 중입니다...");
+          return;
+      }
+
       try {
           await googleDriveService.login();
           setLoggedIn(true);
+          toast.success("Google 로그인 성공");
       } catch (e: any) {
           console.error("Login Failed:", e);
           
           if (e.message === "Configuration missing") {
-              alert("Google API 설정이 누락되었습니다. .env 파일을 확인해주세요.");
-          } else if (e.message?.includes("not initialized")) {
-              alert("Google 서비스가 아직 로딩 중입니다. 잠시 후 다시 시도해주세요.");
+              toast.error("Google API 설정이 누락되었습니다");
+          } else if (e.message?.includes("not initialized") || e.message?.includes("로딩 중")) {
+              toast.loading("Google 서비스 로딩 중...");
           } else if (e.type === 'popup_blocked_by_browser') {
-              alert("브라우저가 로그인 팝업을 차단했습니다. 팝업 차단을 해제하고 다시 시도해주세요.");
+              toast.error("브라우저 팝업이 차단되었습니다");
           } else {
-              alert("로그인 중 오류가 발생했습니다.");
+              toast.error("로그인 중 오류가 발생했습니다");
           }
       }
   };
@@ -90,10 +112,20 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           return (
               <button 
                 onClick={handleGoogleLogin}
-                className="w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95"
+                disabled={!isGoogleScriptReady}
+                className={`w-full bg-white hover:bg-gray-50 text-gray-700 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-gray-200 shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
-                Google 로그인 및 동기화
+                {isGoogleScriptReady ? (
+                    <>
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" className="w-4 h-4"/>
+                        Google 로그인 및 동기화
+                    </>
+                ) : (
+                    <>
+                        <Loader2 size={16} className="animate-spin text-gray-400" />
+                        서비스 로딩 중...
+                    </>
+                )}
               </button>
           );
       }
@@ -102,7 +134,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           return (
               <div className="flex items-center justify-center gap-2 text-indigo-600 py-2">
                   <Loader2 size={16} className="animate-spin" />
-                  <span className="text-xs font-bold">동기화 중...</span>
+                  <span className="text-xs font-bold">클라우드 저장 중...</span>
               </div>
           );
       }

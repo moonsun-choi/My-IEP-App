@@ -58,7 +58,7 @@ export const DailyData: React.FC = () => {
     const total = logs.length;
     // Simplify: Assume all logs are valid for accuracy calculation
     const avgAccuracy = total > 0 
-        ? Math.round(logs.reduce((acc, l) => acc + (l.value || l.accuracy || 0), 0) / total) 
+        ? Math.round(logs.reduce((acc, l) => acc + (l.value || 0), 0) / total) 
         : 0;
     
     return { total, avgAccuracy };

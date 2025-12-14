@@ -117,7 +117,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     // Pass the File object if a new file was selected, otherwise pass the existing URI string
     const mediaToSave = mediaFile ? mediaFile : mediaPreview;
 
-    onSave(accuracy, promptLevel, timestamp, mediaToSave, notes);
+    onSave(accuracy, promptLevel, timestamp, mediaToSave, notes.trim());
     onClose();
   };
 
@@ -269,10 +269,12 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="특이사항이나 관찰 내용을 입력하세요..."
+                        maxLength={1000}
                         className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:border-blue-500 outline-none resize-none h-20 transition-all"
                     />
                     <MessageSquare size={16} className="absolute top-3.5 left-3.5 text-gray-400" />
                  </div>
+                 <div className="text-right text-[10px] text-gray-400 mt-1">{notes.length}/1000</div>
              </div>
 
              {/* Media Attachment */}
