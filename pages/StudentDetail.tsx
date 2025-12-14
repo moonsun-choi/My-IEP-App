@@ -7,7 +7,7 @@ import { Goal, GoalStatus } from '../types';
 import {
     DndContext,
     closestCenter,
-    PointerSensor,
+    MouseSensor,
     TouchSensor,
     useSensor,
     useSensors,
@@ -56,9 +56,9 @@ export const StudentDetail: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, activeTab]);
 
-  // Sensors for DnD
+  // Updated Sensors: Explicit Mouse and Touch
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 5 } })
   );
 

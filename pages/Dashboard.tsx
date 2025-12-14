@@ -266,9 +266,9 @@ export const Dashboard: React.FC = () => {
                     <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-4">
                         <LogOut size={32} />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">앱 종료</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">종료</h3>
                     <p className="text-gray-500 text-sm">
-                        정말 앱을 종료하시겠습니까?
+                        정말 나가시겠습니까?
                     </p>
                 </div>
                 <div className="flex gap-3">
@@ -282,7 +282,7 @@ export const Dashboard: React.FC = () => {
                         onClick={confirmExit}
                         className="flex-1 py-3.5 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-900 transition-colors"
                     >
-                        종료하기
+                        나가기
                     </button>
                 </div>
             </div>

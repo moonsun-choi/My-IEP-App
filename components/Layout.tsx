@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, CloudOff, AlertTriangle, RefreshCw, LogOut, User as UserIcon, ArrowDown } from 'lucide-react';
+import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, CloudOff, AlertTriangle, RefreshCw, LogOut, User as UserIcon } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
 import toast from 'react-hot-toast';
@@ -21,13 +21,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     syncCloudToLocal, syncLocalToCloud, checkCloudStatus
   } = useStore();
 
-  // --- Pull to Refresh State ---
-  const mainRef = useRef<HTMLDivElement>(null);
-  const [pullY, setPullY] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const startY = useRef(0);
-  const isDragging = useRef(false);
-
   // --- Periodic Sync Cycle (30 seconds) ---
   useEffect(() => {
     // Only run if logged in and online
@@ -38,9 +31,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         checkCloudStatus();
         
         // 2. Retry upload if in error state or just to be safe
-        // (Note: We avoid calling syncLocalToCloud unnecessarily to save bandwidth, 
-        // relying on the store's markDirty debounce for active changes, 
-        // but checking status handles the "download" cycle awareness)
         if (syncStatus === 'error') {
             syncLocalToCloud();
         }
@@ -94,72 +84,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [location]);
-
-  // --- Pull to Refresh Logic ---
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (!mainRef.current) return;
-    
-    // Only enable pull if we are at the top of the scroll
-    if (mainRef.current.scrollTop <= 0) {
-      startY.current = e.touches[0].clientY;
-      isDragging.current = true;
-    } else {
-      isDragging.current = false;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging.current || isRefreshing) return;
-    
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - startY.current;
-
-    // Only allow pulling down
-    if (diff > 0 && mainRef.current?.scrollTop === 0) {
-      // Prevent browser native reload if we are handling it
-      if (e.cancelable && diff < 200) { 
-         // Note: preventing default too aggressively can break scrolling, 
-         // so we only do it if we are sure it's a pull gesture at the top.
-      }
-      // Add resistance
-      setPullY(Math.min(diff * 0.4, 120)); 
-    } else {
-      setPullY(0);
-    }
-  };
-
-  const handleTouchEnd = async () => {
-    isDragging.current = false;
-    if (isRefreshing) return;
-
-    if (pullY > 60) {
-      // Trigger Refresh
-      if (isLoggedIn && isOnline) {
-          setIsRefreshing(true);
-          setPullY(60); // Snap to loading position
-          
-          try {
-              await syncCloudToLocal();
-              // Success feedback handled by store toast
-          } catch (e) {
-              // Error handled by store toast
-          } finally {
-              // Reset after a delay
-              setTimeout(() => {
-                  setIsRefreshing(false);
-                  setPullY(0);
-              }, 800);
-          }
-      } else {
-          setPullY(0);
-          if (!isLoggedIn) toast.error("동기화를 위해 로그인이 필요합니다");
-          else if (!isOnline) toast.error("오프라인 상태입니다");
-      }
-    } else {
-      // Snap back if threshold not met
-      setPullY(0);
-    }
-  };
 
   const handleGoogleLogin = async () => {
       if (!navigator.onLine) {
@@ -410,7 +334,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="p-4 mt-auto">
             {renderProfileCard()}
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.1.3 (Auto Sync Cycle)</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.4</p>
             </div>
         </div>
       </div>
@@ -436,34 +360,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <div className="flex items-center gap-2">
                  {!isOnline && <CloudOff size={20} className="text-gray-300" />}
-                 {isOnline && isLoggedIn && syncStatus === 'saved' && <CheckSquare size={20} className="text-green-500" />}
                  {isOnline && isLoggedIn && syncStatus === 'syncing' && <RefreshCw size={20} className="text-cyan-500 animate-spin" />}
             </div>
           </div>
         </header>
 
-        {/* Pull to Refresh Indicator */}
-        <div 
-          className="absolute left-0 right-0 flex justify-center z-20 pointer-events-none transition-all duration-300"
-          style={{ top: `${68 + Math.max(0, pullY - 40)}px`, opacity: pullY > 0 ? 1 : 0 }}
-        >
-          <div className="bg-white rounded-full p-2 shadow-lg border border-gray-100 flex items-center gap-2 text-xs font-bold text-cyan-600">
-             <RefreshCw size={16} className={`${isRefreshing ? 'animate-spin' : ''} ${pullY > 60 && !isRefreshing ? 'rotate-180 transition-transform' : ''}`} />
-             <span>{isRefreshing ? '동기화 중...' : '당겨서 동기화'}</span>
-          </div>
-        </div>
-
-        <main 
-            ref={mainRef}
-            className="flex-1 overflow-y-auto p-0 scroll-smooth bg-slate-50/50 touch-pan-y"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            style={{ 
-                transform: `translateY(${pullY}px)`, 
-                transition: isDragging.current ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' 
-            }}
-        >
+        <main className="flex-1 overflow-y-auto p-0 scroll-smooth bg-slate-50/50">
           {children}
         </main>
       </div>
