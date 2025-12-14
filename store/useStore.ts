@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { AppState, PromptLevel, WidgetType, Student, Goal, GoalStatus } from '../types';
 import { db } from '../services/db';
 import { googleDriveService } from '../services/googleDrive';
+import toast from 'react-hot-toast';
 
 // Debounce helper for auto-sync
 const debounce = (func: Function, wait: number) => {
@@ -106,6 +107,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             } catch (e) {
                 console.error("Auto sync failed", e);
                 set({ syncStatus: 'error' });
+                toast.error("자동 동기화 실패");
             }
         },
 
@@ -126,12 +128,12 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     // Refresh logs if a student is selected (context dependent, but good to ensure consistency)
                     
                     set({ syncStatus: 'idle', lastSyncTime: now });
-                    alert("동기화가 완료되었습니다.");
+                    toast.success("데이터 복원 완료");
                 }
             } catch (e) {
                 console.error("Restore failed", e);
                 set({ syncStatus: 'error' });
-                alert("동기화 실패");
+                toast.error("데이터 복원 실패");
             }
         },
 
@@ -169,6 +171,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             await db.addStudent(name);
             await get().fetchStudents();
             markDirty();
+            toast.success('학생이 추가되었습니다');
             } finally {
             set({ isLoading: false });
             }
@@ -178,12 +181,14 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             await db.updateStudent(id, name);
             await get().fetchStudents();
             markDirty();
+            toast.success('학생 정보 수정됨');
         },
 
         deleteStudent: async (id: string) => {
             await db.deleteStudent(id);
             await get().fetchStudents();
             markDirty();
+            toast.success('학생 삭제됨');
         },
 
         reorderStudents: async (students: Student[]) => {
@@ -211,6 +216,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             await db.addGoal(studentId, title, icon, status);
             await get().fetchGoals(studentId);
             markDirty();
+            toast.success('목표 추가됨');
             } finally {}
         },
 
@@ -222,6 +228,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 await get().fetchGoals(goal.student_id);
             }
             markDirty();
+            toast.success('목표 수정됨');
             } finally {}
         },
 
@@ -230,6 +237,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 await db.deleteGoal(goalId);
                 await get().fetchGoals(studentId);
                 markDirty();
+                toast.success('목표 삭제됨');
             } finally {}
         },
 
@@ -259,9 +267,9 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
                 } catch (e) {
                     console.error("Failed to upload media", e);
-                    alert("미디어 업로드에 실패했습니다. 기록이 저장되지 않았습니다. 네트워크를 확인 후 다시 시도해주세요.");
+                    toast.error("미디어 업로드 실패. 네트워크를 확인해주세요.");
                     set({ isLoading: false });
-                    return; // Critical Change: Exit function, do not save incomplete data.
+                    return; // Exit function
                 } finally {
                     set({ isLoading: false });
                 }
@@ -273,12 +281,14 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             await db.addLog(goalId, value, promptLevel, finalUri, notes);
             await get().fetchLogs(goalId);
             markDirty();
+            toast.success('기록이 저장되었습니다');
         },
 
         deleteLog: async (logId: string, goalId: string) => {
             await db.deleteLog(logId);
             await get().fetchLogs(goalId);
             markDirty();
+            toast.success('기록 삭제됨');
         },
 
         updateLog: async (logId: string, goalId: string, value: number, promptLevel: PromptLevel, timestamp: number, mediaUri?: string | File, notes?: string) => {
@@ -291,9 +301,9 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
                 } catch (e) {
                     console.error("Failed to upload media", e);
-                    alert("미디어 업로드 실패. 수정사항이 저장되지 않았습니다.");
+                    toast.error("미디어 업로드 실패");
                     set({ isLoading: false });
-                    return; // Critical Change: Exit function
+                    return; // Exit function
                 } finally {
                     set({ isLoading: false });
                 }
@@ -304,6 +314,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes);
             await get().fetchLogs(goalId);
             markDirty();
+            toast.success('기록이 수정되었습니다');
         },
 
         fetchAssessments: async () => {

@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen, CloudOff, AlertTriangle, RefreshCw } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
+import toast from 'react-hot-toast';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -61,17 +62,18 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       try {
           await googleDriveService.login();
           setLoggedIn(true);
+          toast.success("Google 로그인 성공");
       } catch (e: any) {
           console.error("Login Failed:", e);
           
           if (e.message === "Configuration missing") {
-              alert("Google API 설정이 누락되었습니다. .env 파일을 확인해주세요.");
+              toast.error("Google API 설정이 누락되었습니다");
           } else if (e.message?.includes("not initialized")) {
-              alert("Google 서비스가 아직 로딩 중입니다. 잠시 후 다시 시도해주세요.");
+              toast.loading("Google 서비스 로딩 중...");
           } else if (e.type === 'popup_blocked_by_browser') {
-              alert("브라우저가 로그인 팝업을 차단했습니다. 팝업 차단을 해제하고 다시 시도해주세요.");
+              toast.error("브라우저 팝업이 차단되었습니다");
           } else {
-              alert("로그인 중 오류가 발생했습니다.");
+              toast.error("로그인 중 오류가 발생했습니다");
           }
       }
   };
