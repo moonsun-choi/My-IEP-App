@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, BookOpen, CloudOff, AlertTriangle, RefreshCw, LogOut, User as UserIcon, MoreVertical } from 'lucide-react';
+import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, CloudOff, AlertTriangle, RefreshCw, LogOut, User as UserIcon, ArrowDown } from 'lucide-react';
 import { googleDriveService } from '../services/googleDrive';
 import { useStore } from '../store/useStore';
 import toast from 'react-hot-toast';
@@ -13,26 +13,48 @@ interface LayoutProps {
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isGoogleScriptReady, setIsGoogleScriptReady] = useState(false);
-  const [isScriptSlow, setIsScriptSlow] = useState(false);
   
   const location = useLocation();
   const { 
     isLoggedIn, isOnline, syncStatus, user,
     setLoggedIn, setOnlineStatus, setUser, logout,
-    syncCloudToLocal, syncLocalToCloud 
+    syncCloudToLocal, syncLocalToCloud, checkCloudStatus
   } = useStore();
+
+  // --- Pull to Refresh State ---
+  const mainRef = useRef<HTMLDivElement>(null);
+  const [pullY, setPullY] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const startY = useRef(0);
+  const isDragging = useRef(false);
+
+  // --- Periodic Sync Cycle (30 seconds) ---
+  useEffect(() => {
+    // Only run if logged in and online
+    if (!isLoggedIn || !isOnline) return;
+
+    const syncInterval = setInterval(() => {
+        // 1. Check for incoming changes from cloud
+        checkCloudStatus();
+        
+        // 2. Retry upload if in error state or just to be safe
+        // (Note: We avoid calling syncLocalToCloud unnecessarily to save bandwidth, 
+        // relying on the store's markDirty debounce for active changes, 
+        // but checking status handles the "download" cycle awareness)
+        if (syncStatus === 'error') {
+            syncLocalToCloud();
+        }
+    }, 30000); // 30 seconds cycle
+
+    return () => clearInterval(syncInterval);
+  }, [isLoggedIn, isOnline, syncStatus, checkCloudStatus, syncLocalToCloud]);
 
   useEffect(() => {
     // 1. Init Google Drive
-    const slowTimer = setTimeout(() => {
-        if (!isGoogleScriptReady) setIsScriptSlow(true);
-    }, 15000); 
-
     const initDrive = async () => {
         try {
             await googleDriveService.init(() => {
                 setIsGoogleScriptReady(true);
-                setIsScriptSlow(false);
             });
         } catch (err) {
             console.log("Initial Google service load failed:", err);
@@ -53,7 +75,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
-        clearTimeout(slowTimer);
     };
   }, [setOnlineStatus]);
 
@@ -74,20 +95,83 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     setIsSidebarOpen(false);
   }, [location]);
 
+  // --- Pull to Refresh Logic ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!mainRef.current) return;
+    
+    // Only enable pull if we are at the top of the scroll
+    if (mainRef.current.scrollTop <= 0) {
+      startY.current = e.touches[0].clientY;
+      isDragging.current = true;
+    } else {
+      isDragging.current = false;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || isRefreshing) return;
+    
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY.current;
+
+    // Only allow pulling down
+    if (diff > 0 && mainRef.current?.scrollTop === 0) {
+      // Prevent browser native reload if we are handling it
+      if (e.cancelable && diff < 200) { 
+         // Note: preventing default too aggressively can break scrolling, 
+         // so we only do it if we are sure it's a pull gesture at the top.
+      }
+      // Add resistance
+      setPullY(Math.min(diff * 0.4, 120)); 
+    } else {
+      setPullY(0);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    isDragging.current = false;
+    if (isRefreshing) return;
+
+    if (pullY > 60) {
+      // Trigger Refresh
+      if (isLoggedIn && isOnline) {
+          setIsRefreshing(true);
+          setPullY(60); // Snap to loading position
+          
+          try {
+              await syncCloudToLocal();
+              // Success feedback handled by store toast
+          } catch (e) {
+              // Error handled by store toast
+          } finally {
+              // Reset after a delay
+              setTimeout(() => {
+                  setIsRefreshing(false);
+                  setPullY(0);
+              }, 800);
+          }
+      } else {
+          setPullY(0);
+          if (!isLoggedIn) toast.error("동기화를 위해 로그인이 필요합니다");
+          else if (!isOnline) toast.error("오프라인 상태입니다");
+      }
+    } else {
+      // Snap back if threshold not met
+      setPullY(0);
+    }
+  };
+
   const handleGoogleLogin = async () => {
-      // 0. Pre-check network
       if (!navigator.onLine) {
           toast.error("인터넷 연결을 확인해주세요.", { id: 'offline-error', duration: 2000 });
           return;
       }
 
-      // 1. Retry Script Init if needed
       if (!isGoogleScriptReady) {
           const loadingId = toast.loading("Google 서비스 연결 재시도 중...", { id: 'retry-loading' });
           try {
             await googleDriveService.init(() => {
                 setIsGoogleScriptReady(true);
-                setIsScriptSlow(false);
             });
             toast.dismiss(loadingId);
           } catch (e) {
@@ -97,12 +181,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           }
       }
 
-      // 2. Perform Login
       try {
           toast.dismiss();
           await googleDriveService.login();
-          
-          // Fetch Profile
           const userInfo = await googleDriveService.getUserInfo();
           if (userInfo) {
               setUser({
@@ -111,7 +192,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   picture: userInfo.picture
               });
           }
-          
           setLoggedIn(true);
           toast.success("Google 로그인 성공", { duration: 3000 });
       } catch (e: any) {
@@ -137,7 +217,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     return current ? current.label : 'My IEP App';
   };
 
-  // --- Profile Card Renderer ---
   const renderProfileCard = () => {
       if (!isOnline) {
           return (
@@ -177,10 +256,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           );
       }
 
-      // Logged In State
       return (
           <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm relative group">
-              {/* User Info */}
               <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200 shrink-0">
                       {user?.picture ? (
@@ -197,7 +274,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </div>
               </div>
 
-              {/* Sync Status Bar */}
               <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5 mb-3">
                     <span className="text-xs font-bold text-gray-500">Cloud Sync</span>
                     <div className="flex items-center gap-1.5">
@@ -231,9 +307,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="grid grid-cols-4 gap-2">
-                   {/* Sync Button (Takes 3 cols) */}
                    {syncStatus === 'cloud_newer' ? (
                         <button 
                             onClick={syncCloudToLocal}
@@ -252,7 +326,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         </button>
                    )}
                    
-                   {/* Logout Button (Takes 1 col) */}
                    <button 
                         onClick={logout}
                         title="로그아웃"
@@ -287,7 +360,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         <div className="px-6 py-8 flex items-center justify-between shrink-0">
           <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 group">
-            {/* New Target Icon: Cyan Background, White Middle, Lime Center */}
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-100 group-hover:scale-105 transition-transform overflow-hidden relative bg-cyan-500">
                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                   <div className="w-2.5 h-2.5 bg-lime-400 rounded-full" />
@@ -338,7 +410,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="p-4 mt-auto">
             {renderProfileCard()}
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.1.2 (Sync Added)</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.3 (Auto Sync Cycle)</p>
             </div>
         </div>
       </div>
@@ -370,7 +442,28 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-0 scroll-smooth bg-slate-50/50">
+        {/* Pull to Refresh Indicator */}
+        <div 
+          className="absolute left-0 right-0 flex justify-center z-20 pointer-events-none transition-all duration-300"
+          style={{ top: `${68 + Math.max(0, pullY - 40)}px`, opacity: pullY > 0 ? 1 : 0 }}
+        >
+          <div className="bg-white rounded-full p-2 shadow-lg border border-gray-100 flex items-center gap-2 text-xs font-bold text-cyan-600">
+             <RefreshCw size={16} className={`${isRefreshing ? 'animate-spin' : ''} ${pullY > 60 && !isRefreshing ? 'rotate-180 transition-transform' : ''}`} />
+             <span>{isRefreshing ? '동기화 중...' : '당겨서 동기화'}</span>
+          </div>
+        </div>
+
+        <main 
+            ref={mainRef}
+            className="flex-1 overflow-y-auto p-0 scroll-smooth bg-slate-50/50 touch-pan-y"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{ 
+                transform: `translateY(${pullY}px)`, 
+                transition: isDragging.current ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)' 
+            }}
+        >
           {children}
         </main>
       </div>

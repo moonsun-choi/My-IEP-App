@@ -150,10 +150,13 @@ class DatabaseService {
 
   // --- Students ---
   async getStudents(): Promise<Student[]> {
-    // Seed data if empty
+    // Check if we have already seeded initial data
+    const isSeeded = await this.getKeyVal<boolean>('is_seeded', false);
     const students = await this.getKeyVal<Student[]>('students', []);
-    if (students.length === 0) {
-      const initial: Student[] = [
+
+    // Initial Seed (Only if never seeded and empty)
+    if (!isSeeded && students.length === 0) {
+      const initialStudents: Student[] = [
         { 
           id: '1', 
           name: '김철수', 
@@ -165,9 +168,27 @@ class DatabaseService {
           photo_uri: `https://ui-avatars.com/api/?name=${encodeURIComponent('이영희')}&background=E0F2FE&color=0369A1` 
         },
       ];
-      await this.setKeyVal('students', initial);
-      return initial;
+
+      // Seed goals together to ensure consistency
+      const initialGoals: Goal[] = [
+         { id: 'g1', student_id: '1', title: "이름 호명 반응하기", description: "교사가 내 이름을 부르면 눈을 맞추거나 '네'라고 답한다.", icon: 'comm_listen', status: 'in_progress' },
+         { id: 'g2', student_id: '1', title: "사물 요구하기 (주세요)", description: "원하는 사물을 보고 몸짓과 함께 '주세요'라고 요구한다.", icon: 'comm_gesture', status: 'in_progress' },
+         { id: 'g4', student_id: '2', title: "손 씻기 6단계", description: "식사 전 손 씻기 6단계 수칙을 지킨다.", icon: 'hygiene_wash', status: 'completed' },
+         { id: 'g5', student_id: '2', title: "화장실 뒷처리", description: "용변 후 옷을 입고 난 뒤에 물을 내린다.", icon: 'hygiene_paper', status: 'in_progress' }
+      ];
+
+      await this.setKeyVal('students', initialStudents);
+      await this.setKeyVal('goals', initialGoals);
+      await this.setKeyVal('is_seeded', true);
+      
+      return initialStudents;
     }
+    
+    // Mark as seeded if data exists (e.g. migration case or previously seeded)
+    if (!isSeeded && students.length > 0) {
+        await this.setKeyVal('is_seeded', true);
+    }
+    
     return students;
   }
 
@@ -203,19 +224,7 @@ class DatabaseService {
 
   // --- Goals ---
   async getAllGoals(): Promise<Goal[]> {
-    let allGoals = await this.getKeyVal<Goal[]>('goals', []);
-    
-    // Seed default goals if absolutely empty
-    if (allGoals.length === 0 && (await this.getStudents()).length > 0) {
-       const demoGoals = [
-         { id: 'g1', student_id: '1', title: "이름 호명 반응하기", description: "교사가 내 이름을 부르면 눈을 맞추거나 '네'라고 답한다.", icon: 'comm_listen', status: 'in_progress' as GoalStatus },
-         { id: 'g2', student_id: '1', title: "사물 요구하기 (주세요)", description: "원하는 사물을 보고 몸짓과 함께 '주세요'라고 요구한다.", icon: 'comm_gesture', status: 'in_progress' as GoalStatus },
-         { id: 'g4', student_id: '2', title: "손 씻기 6단계", description: "식사 전 손 씻기 6단계 수칙을 지킨다.", icon: 'hygiene_wash', status: 'completed' as GoalStatus },
-         { id: 'g5', student_id: '2', title: "화장실 뒷처리", description: "용변 후 옷을 입고 난 뒤에 물을 내린다.", icon: 'hygiene_paper', status: 'in_progress' as GoalStatus }
-       ];
-       await this.setKeyVal('goals', demoGoals);
-       allGoals = demoGoals;
-    }
+    const allGoals = await this.getKeyVal<Goal[]>('goals', []);
     return allGoals.map(g => ({ ...g, status: g.status || 'in_progress' }));
   }
 
@@ -409,7 +418,8 @@ class DatabaseService {
         goals: await this.getKeyVal('goals', []),
         logs: logs,
         assessments: await this.getKeyVal('assessments', []),
-        widgets: await this.getKeyVal('widgets', [])
+        widgets: await this.getKeyVal('widgets', []),
+        is_seeded: await this.getKeyVal('is_seeded', false)
     };
     return JSON.stringify(data);
   }
@@ -425,6 +435,13 @@ class DatabaseService {
         if (data.goals) await txKeyVal.store.put(data.goals, 'goals');
         if (data.assessments) await txKeyVal.store.put(data.assessments, 'assessments');
         if (data.widgets) await txKeyVal.store.put(data.widgets, 'widgets');
+        // If importing, we respect the backup's seeded state or assume seeded if data exists
+        if (data.is_seeded !== undefined) {
+             await txKeyVal.store.put(data.is_seeded, 'is_seeded');
+        } else {
+             // If legacy backup without flag, set to true to prevent accidental seeding
+             await txKeyVal.store.put(true, 'is_seeded');
+        }
         await txKeyVal.done;
 
         // Import Logs

@@ -58,8 +58,8 @@ export const StudentDetail: React.FC = () => {
 
   // Sensors for DnD
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 5 } })
   );
 
   const handleDragEnd = (event: DragEndEvent) => {

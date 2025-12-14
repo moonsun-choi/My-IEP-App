@@ -53,7 +53,8 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         }
     };
 
-    const debouncedSync = debounce(() => get().syncLocalToCloud(), 3000);
+    // Reduced debounce time: 3000ms -> 1500ms for "Real-time" feel
+    const debouncedSync = debounce(() => get().syncLocalToCloud(), 1500);
 
     return {
         students: [],
@@ -111,7 +112,8 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 if (metadata) {
                     const cloudTime = new Date(metadata.modifiedTime).getTime();
                     const localLastSync = await db.getLastSyncTime();
-                    if (cloudTime > localLastSync + 5000) {
+                    // If cloud is newer by more than 10 seconds
+                    if (cloudTime > localLastSync + 10000) {
                         set({ syncStatus: 'cloud_newer' });
                     }
                 }
@@ -122,6 +124,10 @@ export const useStore = create<ExtendedAppState>((set, get) => {
 
         syncLocalToCloud: async () => {
             if (!get().isLoggedIn || !get().isOnline) return;
+            
+            // Prevent multiple syncs overlap
+            if (get().syncStatus === 'syncing') return;
+
             set({ syncStatus: 'syncing' });
             try {
                 const data = await db.exportData();
@@ -133,7 +139,8 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             } catch (e) {
                 console.error("Auto sync failed", e);
                 set({ syncStatus: 'error' });
-                toast.error("자동 동기화 실패");
+                // Do not toast on background auto-sync to avoid annoyance, 
+                // the UI icon will show the error state.
             }
         },
 

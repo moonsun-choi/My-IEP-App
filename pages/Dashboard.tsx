@@ -107,7 +107,7 @@ export const Dashboard: React.FC = () => {
                           <Sparkles size={18} className="text-teal-500" />
                           <span className="text-xs font-bold uppercase tracking-wider text-teal-600">Today's Focus</span>
                       </div>
-                      <h2 className="text-2xl md:text-3xl font-bold leading-tight mb-2 text-teal-900">
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold leading-tight mb-2 text-teal-900 whitespace-nowrap">
                           {studentNeedsObservation 
                             ? `${studentNeedsObservation.name} 학생의 기록이 필요해요.` 
                             : "오늘의 모든 기록을 완료했어요!"}

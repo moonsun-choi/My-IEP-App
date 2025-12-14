@@ -50,16 +50,28 @@ export const DailyData: React.FC = () => {
 
   useEffect(() => {
     if (selectedStudentId) {
+      // Clear logs immediately to avoid showing previous student's logs
+      useStore.setState({ logs: [] });
+
       fetchGoals(selectedStudentId);
       setSelectedGoalId(''); 
     }
   }, [selectedStudentId, fetchGoals]);
 
   useEffect(() => {
-    if (goals.length > 0 && !selectedGoalId) {
-      setSelectedGoalId(goals[0].id);
+    // Only auto-select if we have goals AND they belong to the current student
+    // (Fixes bug where stale goals from Dashboard/other pages cause mismatch)
+    const areGoalsForCurrentStudent = goals.length > 0 && goals[0].student_id === selectedStudentId;
+
+    if (areGoalsForCurrentStudent) {
+        // If no goal selected, or the selected goal is not in the current list
+        const isSelectionValid = selectedGoalId && goals.some(g => g.id === selectedGoalId);
+        
+        if (!isSelectionValid) {
+            setSelectedGoalId(goals[0].id);
+        }
     }
-  }, [goals, selectedGoalId]);
+  }, [goals, selectedGoalId, selectedStudentId]);
 
   useEffect(() => {
     if (selectedGoalId) {
