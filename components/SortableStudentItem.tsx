@@ -137,7 +137,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
          <div className="absolute inset-0 rounded-2xl flex overflow-hidden shadow-inner bg-gray-100">
              {/* Left Reveal (Blue for Edit) */}
              <div 
-                className="flex-1 bg-blue-500 flex items-center justify-start pl-6 text-white transition-opacity duration-200"
+                className="flex-1 bg-cyan-500 flex items-center justify-start pl-6 text-white transition-opacity duration-200"
                 style={{ opacity: touchOffset > 0 ? Math.min(touchOffset / 60, 1) : 0 }}
              >
                  <Edit2 size={24} />
@@ -171,10 +171,10 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
         className={`
           relative p-4 rounded-2xl flex items-center gap-4 transition-all touch-none select-none overflow-hidden
           ${isEditMode 
-            ? 'bg-white border-2 border-indigo-500 shadow-md cursor-pointer' // Edit Mode: Strong Border + Shadow + Pointer
+            ? 'bg-white border-2 border-cyan-500 shadow-md cursor-pointer' // Edit Mode: Strong Border + Shadow + Pointer
             : 'bg-white border border-gray-100 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]' // Normal Mode
           }
-          ${isDragging ? 'shadow-2xl scale-105 z-50 ring-4 ring-indigo-200' : ''}
+          ${isDragging ? 'shadow-2xl scale-105 z-50 ring-4 ring-cyan-200' : ''}
         `}
         onClick={handleCardClick}
       >
@@ -185,7 +185,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
                 ref={setActivatorNodeRef}
                 {...listeners}
                 {...attributes}
-                className="text-indigo-400 p-2 -ml-3 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center bg-gray-50 rounded-lg hover:bg-indigo-50 mr-1"
+                className="text-cyan-400 p-2 -ml-3 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center bg-gray-50 rounded-lg hover:bg-cyan-50 mr-1"
                 onClick={(e) => e.stopPropagation()}
             >
                <GripVertical size={24} />
@@ -202,7 +202,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
                   (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
-            <div className="w-full h-full flex items-center justify-center bg-indigo-50 text-indigo-300 absolute inset-0 -z-10">
+            <div className="w-full h-full flex items-center justify-center bg-cyan-50 text-cyan-300 absolute inset-0 -z-10">
               <User size={24} />
             </div>
             
@@ -222,8 +222,8 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
                   <Target size={12} className="text-gray-400" />
                   <span>전체 {goals.length}</span>
                </div>
-               <div className="flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">
-                  <PlayCircle size={12} className="text-indigo-500" />
+               <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-600 bg-cyan-50 px-2 py-1 rounded-md">
+                  <PlayCircle size={12} className="text-cyan-500" />
                   <span>진행 {goals.length}</span>
                </div>
           </div>

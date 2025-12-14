@@ -135,7 +135,7 @@ export const StudentList: React.FC = () => {
   };
 
   return (
-    <div className={`pb-24 p-4 md:p-8 max-w-3xl mx-auto w-full min-h-screen transition-colors ${isEditMode ? 'bg-indigo-50/30' : ''}`}>
+    <div className={`pb-24 p-4 md:p-8 max-w-3xl mx-auto w-full min-h-screen transition-colors ${isEditMode ? 'bg-cyan-50/30' : ''}`}>
       {/* Header */}
       <header className="mb-6 flex justify-between items-center sticky top-0 z-10 bg-slate-50/90 backdrop-blur-sm py-2">
         <div>
@@ -149,7 +149,7 @@ export const StudentList: React.FC = () => {
             onClick={() => setIsEditMode(!isEditMode)}
             className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-sm ${
                 isEditMode 
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200' 
+                ? 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-cyan-200' 
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
             }`}
         >
@@ -201,9 +201,9 @@ export const StudentList: React.FC = () => {
                 {/* Add Student Button (Always visible) */}
                 <button
                     onClick={openAddSheet}
-                    className="w-full mt-4 py-4 bg-white border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-indigo-300 hover:text-indigo-500 transition-all group"
+                    className="w-full mt-4 py-4 bg-white border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-cyan-300 hover:text-cyan-600 transition-all group"
                 >
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-500 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-cyan-100 group-hover:text-cyan-600 transition-colors">
                         <Plus size={20} />
                     </div>
                     <span>학생 추가하기</span>
@@ -264,7 +264,7 @@ export const StudentList: React.FC = () => {
                           type="text" 
                           value={tempStudentName} 
                           onChange={e => setTempStudentName(e.target.value)}
-                          className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-lg font-bold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-gray-300"
+                          className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-lg font-bold focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition-all placeholder:text-gray-300"
                           placeholder="학생 이름을 입력하세요"
                           autoFocus
                       />
@@ -285,7 +285,7 @@ export const StudentList: React.FC = () => {
                       <button 
                         onClick={() => isAdding ? handleAddStudent() : handleUpdateStudent()}
                         disabled={!tempStudentName.trim()}
-                        className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                        className="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold text-lg hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                       >
                           {isAdding ? (
                               <>

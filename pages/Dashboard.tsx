@@ -2,12 +2,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { Link, useNavigate } from 'react-router-dom';
-import { Target, ChevronRight, Settings, BarChart2, CheckSquare, Sparkles, ArrowRight, Activity, Users, LogOut } from 'lucide-react';
+import { ChevronRight, Settings, BarChart2, CheckSquare, Sparkles, ArrowRight, Activity, Users, LogOut } from 'lucide-react';
 import { WidgetType } from '../types';
 import { useBackExit } from '../hooks/useBackExit';
 
 export const Dashboard: React.FC = () => {
-  const { students, logs, fetchStudents, activeWidgets, fetchWidgets, toggleWidget } = useStore();
+  const { students, logs, goals, fetchDashboardData, activeWidgets, fetchWidgets, toggleWidget } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const navigate = useNavigate();
 
@@ -15,7 +15,7 @@ export const Dashboard: React.FC = () => {
   const { showExitConfirm, confirmExit, cancelExit } = useBackExit();
 
   useEffect(() => {
-    fetchStudents();
+    fetchDashboardData();
     fetchWidgets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -29,7 +29,7 @@ export const Dashboard: React.FC = () => {
       const recordedStudentIds = new Set(
           logs.filter(l => new Date(l.timestamp).toDateString() === todayStr)
               .map(l => {
-                  const goal = useStore.getState().goals.find(g => g.id === l.goal_id);
+                  const goal = goals.find(g => g.id === l.goal_id);
                   return goal?.student_id;
               })
               .filter(Boolean)
@@ -37,7 +37,7 @@ export const Dashboard: React.FC = () => {
       
       // Find first student not in that set
       return students.find(s => !recordedStudentIds.has(s.id));
-  }, [students, logs, todayStr]);
+  }, [students, logs, goals, todayStr]);
 
   // 2. Weekly Activity Data (Last 7 days)
   const weeklyActivity = useMemo(() => {
@@ -64,21 +64,21 @@ export const Dashboard: React.FC = () => {
           label: '관찰 기록',
           desc: '실시간 데이터 수집',
           icon: CheckSquare,
-          color: 'bg-orange-100 text-orange-600',
+          color: 'bg-emerald-100 text-emerald-600',
           path: '/tracker'
       },
       students: {
           label: '나의 학급',
           desc: '학생 및 목표 관리',
           icon: Users,
-          color: 'bg-indigo-100 text-indigo-600',
+          color: 'bg-cyan-100 text-cyan-600',
           path: '/students'
       },
       reports: {
           label: '보고서',
           desc: '성장 추이 및 데이터 분석',
           icon: BarChart2,
-          color: 'bg-blue-100 text-blue-600',
+          color: 'bg-sky-100 text-sky-600',
           path: '/reports'
       }
   };
@@ -92,24 +92,27 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Left: Actionable Focus Card */}
-          <div className="lg:col-span-2 relative overflow-hidden rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-indigo-200 transition-all hover:shadow-2xl">
-              {/* Background Gradient & Decor */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700" />
-              <div className="absolute top-0 right-0 -mr-10 -mt-10 w-64 h-64 rounded-full bg-white/10 blur-3xl" />
-              <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 rounded-full bg-indigo-400/20 blur-2xl" />
+          {/* Updated: Softer/Lighter Background Colors */}
+          <div className="lg:col-span-2 relative overflow-hidden rounded-3xl p-6 md:p-8 shadow-xl shadow-cyan-50 transition-all hover:shadow-cyan-100 border border-cyan-100">
+              {/* Background Gradient - Soft Pastel */}
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 via-teal-50 to-emerald-50" />
+              
+              {/* Decor Circles (Subtle) */}
+              <div className="absolute top-0 right-0 -mr-10 -mt-10 w-64 h-64 rounded-full bg-cyan-100/50 blur-3xl" />
+              <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 rounded-full bg-teal-100/50 blur-2xl" />
 
               <div className="relative z-10 h-full flex flex-col justify-between">
                   <div>
-                      <div className="flex items-center gap-2 mb-2 opacity-90">
-                          <Sparkles size={18} className="text-yellow-300" />
-                          <span className="text-xs font-bold uppercase tracking-wider text-indigo-100">Today's Focus</span>
+                      <div className="flex items-center gap-2 mb-2">
+                          <Sparkles size={18} className="text-teal-500" />
+                          <span className="text-xs font-bold uppercase tracking-wider text-teal-600">Today's Focus</span>
                       </div>
-                      <h2 className="text-2xl md:text-3xl font-bold leading-tight mb-2">
+                      <h2 className="text-2xl md:text-3xl font-bold leading-tight mb-2 text-teal-900">
                           {studentNeedsObservation 
                             ? `${studentNeedsObservation.name} 학생의 기록이 필요해요.` 
                             : "오늘의 모든 기록을 완료했어요!"}
                       </h2>
-                      <p className="text-indigo-100 text-sm md:text-base opacity-90 max-w-md leading-relaxed">
+                      <p className="text-teal-700 text-sm md:text-base max-w-md leading-relaxed">
                           {studentNeedsObservation 
                             ? "오늘 아직 관찰 데이터가 입력되지 않았습니다. 꾸준한 기록이 정확한 IEP 분석의 시작입니다." 
                             : "훌륭합니다! 모든 학생의 데이터가 최신 상태입니다. 보고서에서 성장 추이를 확인해보세요."}
@@ -118,23 +121,23 @@ export const Dashboard: React.FC = () => {
 
                   {studentNeedsObservation ? (
                       <div 
-                        className="mt-8 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-pointer" 
+                        className="mt-8 bg-white border border-cyan-100 rounded-2xl p-4 flex items-center gap-4 transition-transform hover:scale-[1.02] cursor-pointer shadow-sm hover:shadow-md hover:border-cyan-200" 
                         onClick={() => navigate(`/tracker?studentId=${studentNeedsObservation.id}`)}
                       >
-                           <div className="w-12 h-12 rounded-full bg-gray-200 border-2 border-white/30 overflow-hidden shrink-0">
+                           <div className="w-12 h-12 rounded-full bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
                                <img src={studentNeedsObservation.photo_uri} alt="" className="w-full h-full object-cover" />
                            </div>
                            <div className="flex-1">
-                               <div className="font-bold text-lg">{studentNeedsObservation.name}</div>
-                               <div className="text-xs text-indigo-100 opacity-80">최근 기록: 확인 필요</div>
+                               <div className="font-bold text-lg text-gray-800">{studentNeedsObservation.name}</div>
+                               <div className="text-xs text-teal-500 font-medium">최근 기록: 확인 필요</div>
                            </div>
-                           <button className="bg-white text-indigo-600 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-50 transition-colors shadow-sm">
+                           <button className="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-colors shadow-md shadow-teal-100">
                                기록하기 <ArrowRight size={16} />
                            </button>
                       </div>
                   ) : (
                       <div className="mt-8 flex gap-3">
-                          <Link to="/reports" className="bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/20 text-white px-5 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors">
+                          <Link to="/reports" className="bg-white text-teal-700 border border-cyan-200 hover:bg-cyan-50 px-5 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm">
                               보고서 확인 <BarChart2 size={18} />
                           </Link>
                       </div>
@@ -146,8 +149,9 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col">
               <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-2 text-gray-800">
-                      <Activity size={20} className="text-orange-500" />
-                      <h3 className="font-bold text-lg">이번 주 리듬</h3>
+                      <Activity size={20} className="text-lime-500" />
+                      {/* Updated Text */}
+                      <h3 className="font-bold text-lg">이번 주 기록 수</h3>
                   </div>
                   <span className="text-xs font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-md">Last 7 days</span>
               </div>
@@ -164,11 +168,11 @@ export const Dashboard: React.FC = () => {
                               
                               <div className="w-full h-[120px] flex items-end justify-center bg-gray-50 rounded-xl relative overflow-hidden">
                                    <div 
-                                      className={`w-full mx-1 rounded-t-lg transition-all duration-500 ease-out ${d.isToday ? 'bg-orange-400' : 'bg-indigo-200 group-hover:bg-indigo-300'}`}
+                                      className={`w-full mx-1 rounded-t-lg transition-all duration-500 ease-out ${d.isToday ? 'bg-lime-400' : 'bg-cyan-100 group-hover:bg-cyan-200'}`}
                                       style={{ height: `${heightPercent}%` }}
                                    />
                               </div>
-                              <span className={`text-[10px] font-bold ${d.isToday ? 'text-orange-500' : 'text-gray-400'}`}>
+                              <span className={`text-[10px] font-bold ${d.isToday ? 'text-lime-600' : 'text-gray-400'}`}>
                                   {d.day}
                               </span>
                           </div>
@@ -184,7 +188,7 @@ export const Dashboard: React.FC = () => {
              <h3 className="font-bold text-xl text-gray-800">바로가기</h3>
              <button 
                 onClick={() => setIsEditing(!isEditing)}
-                className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${isEditing ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors ${isEditing ? 'bg-cyan-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
              >
                  {isEditing ? <CheckSquare size={14} /> : <Settings size={14} />}
                  {isEditing ? '완료' : '화면 편집'}
@@ -212,7 +216,7 @@ export const Dashboard: React.FC = () => {
                         className={`
                             relative p-5 rounded-2xl border transition-all duration-300 flex items-center gap-4 group
                             ${isActive 
-                                ? 'bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-indigo-100 cursor-pointer' 
+                                ? 'bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-cyan-200 cursor-pointer' 
                                 : 'bg-gray-50 border-dashed border-gray-200 opacity-60'
                             }
                             ${isEditing ? 'cursor-pointer hover:opacity-100' : ''}
@@ -220,7 +224,7 @@ export const Dashboard: React.FC = () => {
                      >
                          {/* Edit Mode Checkbox */}
                          {isEditing && (
-                             <div className={`absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isActive ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 bg-white'}`}>
+                             <div className={`absolute top-3 right-3 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isActive ? 'bg-cyan-500 border-cyan-500' : 'border-gray-300 bg-white'}`}>
                                  {isActive && <CheckSquare size={12} className="text-white" />}
                              </div>
                          )}
@@ -237,7 +241,7 @@ export const Dashboard: React.FC = () => {
                          </div>
 
                          {!isEditing && (
-                             <div className="ml-auto text-gray-300 group-hover:text-indigo-400 transition-colors">
+                             <div className="ml-auto text-gray-300 group-hover:text-cyan-400 transition-colors">
                                  <ChevronRight size={20} />
                              </div>
                          )}

@@ -203,8 +203,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <div className="flex items-center gap-1.5">
                         {syncStatus === 'syncing' && (
                             <>
-                                <RefreshCw size={12} className="text-indigo-500 animate-spin" />
-                                <span className="text-[10px] text-indigo-500 font-bold">동기화 중</span>
+                                <RefreshCw size={12} className="text-cyan-500 animate-spin" />
+                                <span className="text-[10px] text-cyan-500 font-bold">동기화 중</span>
                             </>
                         )}
                         {syncStatus === 'saved' && (
@@ -287,12 +287,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       >
         <div className="px-6 py-8 flex items-center justify-between shrink-0">
           <Link to="/" onClick={() => setIsSidebarOpen(false)} className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 group-hover:scale-105 transition-transform">
-                <BookOpen size={22} strokeWidth={2.5} />
+            {/* New Target Icon: Cyan Background, White Middle, Lime Center */}
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-100 group-hover:scale-105 transition-transform overflow-hidden relative bg-cyan-500">
+               <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                  <div className="w-2.5 h-2.5 bg-lime-400 rounded-full" />
+               </div>
             </div>
             <div className="flex flex-col">
                 <h2 className="text-xl font-black tracking-tight text-gray-800 leading-none">My IEP</h2>
-                <span className="text-xs font-bold text-indigo-500 tracking-wider">APP</span>
+                <span className="text-xs font-bold text-cyan-500 tracking-wider">APP</span>
             </div>
           </Link>
           <button onClick={() => setIsSidebarOpen(false)} className="p-2 -mr-2 text-gray-400 hover:text-gray-600 md:hidden bg-gray-50 rounded-full">
@@ -313,7 +316,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className={`
                     group flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-200
                     ${isActive 
-                        ? 'bg-indigo-50/80 text-indigo-700 shadow-sm ring-1 ring-indigo-100' 
+                        ? 'bg-cyan-50 text-cyan-700 shadow-sm ring-1 ring-cyan-100' 
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                     }
                 `}
@@ -322,11 +325,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <Icon 
                         size={22} 
                         strokeWidth={isActive ? 2.5 : 2}
-                        className={`transition-colors ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'}`} 
+                        className={`transition-colors ${isActive ? 'text-cyan-600' : 'text-gray-400 group-hover:text-gray-600'}`} 
                     />
                     <span className={`font-semibold text-[15px] ${isActive ? 'font-bold' : ''}`}>{item.label}</span>
                 </div>
-                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                {isActive && <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />}
               </Link>
             );
           })}
@@ -362,7 +365,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="flex items-center gap-2">
                  {!isOnline && <CloudOff size={20} className="text-gray-300" />}
                  {isOnline && isLoggedIn && syncStatus === 'saved' && <CheckSquare size={20} className="text-green-500" />}
-                 {isOnline && isLoggedIn && syncStatus === 'syncing' && <RefreshCw size={20} className="text-indigo-500 animate-spin" />}
+                 {isOnline && isLoggedIn && syncStatus === 'syncing' && <RefreshCw size={20} className="text-cyan-500 animate-spin" />}
             </div>
           </div>
         </header>

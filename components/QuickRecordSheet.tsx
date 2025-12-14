@@ -45,6 +45,7 @@ const PROMPT_CONFIG: Record<PromptLevel, { label: string; shortLabel: string; ic
         label: '모델링 (Modeling)',
         shortLabel: '모델링',
         icon: Eye, 
+        // Reverted to Purple as requested
         selectedClass: 'bg-purple-100 text-purple-700 border-purple-500 ring-1 ring-purple-500',
         iconColor: 'text-purple-500'
     },
@@ -223,13 +224,13 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                     step="5"
                     value={accuracy}
                     onChange={(e) => setAccuracy(parseInt(e.target.value, 10))}
-                    className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 accent-blue-600"
+                    className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 accent-cyan-600"
                 />
                     <div className="absolute top-8 left-0 right-0 flex justify-between px-1">
                     {[0, 25, 50, 75, 100].map((val) => (
                     <div key={val} className="flex flex-col items-center group">
-                        <div className={`h-1.5 w-0.5 mb-1 transition-colors ${accuracy >= val ? 'bg-blue-500' : 'bg-gray-300'}`}></div>
-                        <span className={`text-[10px] font-medium transition-colors ${accuracy >= val ? 'text-blue-600' : 'text-gray-400'}`}>{val}</span>
+                        <div className={`h-1.5 w-0.5 mb-1 transition-colors ${accuracy >= val ? 'bg-cyan-500' : 'bg-gray-300'}`}></div>
+                        <span className={`text-[10px] font-medium transition-colors ${accuracy >= val ? 'text-cyan-600' : 'text-gray-400'}`}>{val}</span>
                     </div>
                     ))}
                 </div>
@@ -280,7 +281,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="특이사항이나 관찰 내용을 입력하세요..."
                         maxLength={1000}
-                        className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:border-blue-500 outline-none resize-none h-20 transition-all"
+                        className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:border-cyan-500 outline-none resize-none h-20 transition-all"
                     />
                     <MessageSquare size={16} className="absolute top-3.5 left-3.5 text-gray-400" />
                  </div>
@@ -290,7 +291,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
              {/* Media Attachment */}
              <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl h-12 text-gray-400 hover:bg-gray-50 hover:border-blue-300 hover:text-blue-500 transition-colors"
+                className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl h-12 text-gray-400 hover:bg-gray-50 hover:border-cyan-300 hover:text-cyan-500 transition-colors"
              >
                 <Camera size={18} />
                 <span className="text-xs font-bold">사진/영상 추가</span>
@@ -342,7 +343,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
         <button
           onClick={handleSave}
           disabled={isLoading}
-          className="w-full py-4 rounded-xl font-bold text-white text-lg bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:shadow-none"
+          className="w-full py-4 rounded-xl font-bold text-white text-lg bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:shadow-none"
         >
           {isLoading ? (
               <>

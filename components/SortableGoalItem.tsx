@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { 
   GripVertical, Trash2, Edit2, Check, Pause, Target
@@ -121,8 +122,8 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
       const base = "relative w-full text-left p-4 rounded-2xl flex items-start gap-3 md:gap-4 group transition-transform touch-none select-none overflow-hidden";
       
       if (isEditMode) {
-          // Edit Mode: Unified distinct look (White + Indigo Border)
-          return `${base} bg-white border-2 border-indigo-500 shadow-md`;
+          // Edit Mode: Unified distinct look (White + Cyan Border)
+          return `${base} bg-white border-2 border-cyan-500 shadow-md`;
       }
       
       // Normal Mode: Status-based colors
@@ -132,7 +133,7 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
           case 'on_hold':
               return `${base} bg-gray-50 border border-gray-100 opacity-70 hover:opacity-100`;
           default:
-              return `${base} bg-white border border-gray-100 shadow-sm hover:bg-gray-50 hover:border-indigo-100 active:bg-gray-100`;
+              return `${base} bg-white border border-gray-100 shadow-sm hover:bg-gray-50 hover:border-cyan-100 active:bg-gray-100`;
       }
   };
 
@@ -149,8 +150,8 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
           case 'on_hold':
               return `${base} bg-gray-200 text-gray-400`;
           default:
-              // Changed: Always use Indigo theme for in_progress goals, even for the default target icon
-              return `${base} bg-indigo-50 text-indigo-600`;
+              // Changed: Always use Cyan theme for in_progress goals
+              return `${base} bg-cyan-50 text-cyan-600`;
       }
   };
 
@@ -160,7 +161,7 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
        {isEditMode && (
          <div className="absolute inset-0 rounded-2xl flex overflow-hidden shadow-inner bg-gray-100">
              <div 
-                className="flex-1 bg-blue-500 flex items-center justify-start pl-6 text-white transition-opacity duration-200"
+                className="flex-1 bg-cyan-500 flex items-center justify-start pl-6 text-white transition-opacity duration-200"
                 style={{ opacity: touchOffset > 0 ? Math.min(touchOffset / 60, 1) : 0 }}
              >
                  <Edit2 size={24} />
@@ -194,7 +195,7 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
             onEdit(goal);
         }}
         
-        className={`${getContainerClasses()} ${isDragging ? 'shadow-2xl scale-105 z-50 ring-4 ring-indigo-200 !bg-white' : 'cursor-pointer'}`}
+        className={`${getContainerClasses()} ${isDragging ? 'shadow-2xl scale-105 z-50 ring-4 ring-cyan-200 !bg-white' : 'cursor-pointer'}`}
       >
         {/* Drag Handle (Edit Mode Only) */}
         {isEditMode && (
@@ -202,7 +203,7 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
                 ref={setActivatorNodeRef}
                 {...listeners}
                 {...attributes}
-                className="text-indigo-400 p-2 -ml-2 cursor-grab active:cursor-grabbing touch-none flex items-center self-center justify-center bg-gray-50 rounded-lg hover:bg-indigo-50 mr-1"
+                className="text-cyan-400 p-2 -ml-2 cursor-grab active:cursor-grabbing touch-none flex items-center self-center justify-center bg-gray-50 rounded-lg hover:bg-cyan-50 mr-1"
                 onClick={(e) => e.stopPropagation()} // Prevent click propagating to container
             >
                 <GripVertical size={24} />
@@ -213,7 +214,7 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
         <div className="mt-0.5 shrink-0 flex items-center justify-center">
             {isEditMode ? (
                  // Edit Mode: Simplified Icon
-                <div className="w-12 h-12 rounded-xl bg-indigo-50/50 flex items-center justify-center text-indigo-400 border border-indigo-100">
+                <div className="w-12 h-12 rounded-xl bg-cyan-50/50 flex items-center justify-center text-cyan-400 border border-cyan-100">
                     <IconComponent size={20} />
                 </div>
             ) : (

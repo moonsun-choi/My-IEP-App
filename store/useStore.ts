@@ -178,6 +178,28 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             await db.setWidgets(newWidgets);
             markDirty();
         },
+        
+        // --- Dashboard Data Fetcher ---
+        fetchDashboardData: async () => {
+            set({ isLoading: true });
+            try {
+                // Fetch Students & Goals (Goals needed for ID mapping)
+                const students = await db.getStudents();
+                const goals = await db.getAllGoals();
+
+                // Fetch logs from the last 7 days for "Today's Focus" and "Weekly Rhythm"
+                const end = Date.now();
+                const start = new Date();
+                start.setDate(start.getDate() - 7);
+                start.setHours(0, 0, 0, 0); // Start of 7 days ago
+                
+                const logs = await db.getLogsByTimeRange(start.getTime(), end);
+
+                set({ students, goals, logs });
+            } finally {
+                set({ isLoading: false });
+            }
+        },
 
         fetchStudents: async () => {
             set({ isLoading: true });

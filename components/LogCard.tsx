@@ -29,8 +29,8 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
 
   const getPromptColor = (level: PromptLevel) => {
     if (level === 'independent') return 'bg-green-100 text-green-700 border-green-200';
-    if (level === 'verbal') return 'bg-blue-100 text-blue-700 border-blue-200';
-    if (level === 'physical') return 'bg-red-100 text-red-700 border-red-200';
+    if (level === 'verbal') return 'bg-sky-100 text-sky-700 border-sky-200';
+    if (level === 'physical') return 'bg-rose-100 text-rose-700 border-rose-200';
     return 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
@@ -78,7 +78,7 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
               {getPromptLabel(log.promptLevel)}
             </span>
             {log.media_uri && (
-              <span className="bg-indigo-50 text-indigo-500 border border-indigo-100 rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 font-bold">
+              <span className="bg-cyan-50 text-cyan-500 border border-cyan-100 rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 font-bold">
                 {isVideo ? <Video size={10} /> : <Paperclip size={10} />}
                 {isVideo ? '영상' : '자료'}
               </span>

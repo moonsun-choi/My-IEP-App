@@ -162,9 +162,9 @@ export const DailyData: React.FC = () => {
 
       {/* Stats Cards - Responsive Grid */}
       <div className="grid grid-cols-2 gap-3 md:gap-6">
-          <div className="bg-indigo-50 p-5 rounded-2xl flex flex-col items-center justify-center border border-indigo-100">
-              <span className="text-xs text-indigo-500 font-bold mb-1 uppercase tracking-wide">평균 수행도</span>
-              <span className="text-4xl font-black text-indigo-700">
+          <div className="bg-cyan-50 p-5 rounded-2xl flex flex-col items-center justify-center border border-cyan-100">
+              <span className="text-xs text-cyan-600 font-bold mb-1 uppercase tracking-wide">평균 수행도</span>
+              <span className="text-4xl font-black text-cyan-700">
                   {stats.avgAccuracy}<span className="text-2xl">%</span>
               </span>
           </div>
@@ -180,7 +180,7 @@ export const DailyData: React.FC = () => {
             {sortedLogs.length > 5 && (
                 <button 
                     onClick={() => setIsHistoryOpen(true)}
-                    className="flex items-center gap-1 text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
+                    className="flex items-center gap-1 text-sm font-bold text-cyan-600 hover:text-cyan-800 transition-colors"
                 >
                     <History size={16} />
                     <span>전체 보기 ({sortedLogs.length})</span>
@@ -206,7 +206,7 @@ export const DailyData: React.FC = () => {
             {sortedLogs.length > 5 && (
                  <button 
                     onClick={() => setIsHistoryOpen(true)}
-                    className="w-full py-4 text-center text-gray-500 font-bold text-sm hover:text-indigo-600 transition-colors bg-white rounded-xl border border-gray-100 shadow-sm"
+                    className="w-full py-4 text-center text-gray-500 font-bold text-sm hover:text-cyan-600 transition-colors bg-white rounded-xl border border-gray-100 shadow-sm"
                  >
                      + {sortedLogs.length - 5}개 기록 더 보기
                  </button>
@@ -218,7 +218,7 @@ export const DailyData: React.FC = () => {
           <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-30">
             <button 
                 onClick={handleOpenRecordSheet}
-                className="bg-indigo-600 text-white font-bold p-4 md:px-6 md:py-4 rounded-full shadow-xl shadow-indigo-200 flex items-center justify-center gap-2 hover:bg-indigo-700 transition-transform hover:scale-105 active:scale-95"
+                className="bg-cyan-600 text-white font-bold p-4 md:px-6 md:py-4 rounded-full shadow-xl shadow-cyan-200 flex items-center justify-center gap-2 hover:bg-cyan-700 transition-transform hover:scale-105 active:scale-95"
             >
                 <Plus size={24} strokeWidth={3} />
                 <span className="hidden md:inline">기록하기</span>
@@ -249,7 +249,7 @@ export const DailyData: React.FC = () => {
                             onClick={() => setHistoryFilterMedia(!historyFilterMedia)}
                             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
                                 historyFilterMedia 
-                                ? 'bg-indigo-50 text-indigo-600 border-indigo-200 ring-1 ring-indigo-200' 
+                                ? 'bg-cyan-50 text-cyan-600 border-cyan-200 ring-1 ring-cyan-200' 
                                 : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                             }`}
                         >

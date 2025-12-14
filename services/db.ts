@@ -291,6 +291,18 @@ class DatabaseService {
     }));
   }
 
+  async getLogsByTimeRange(start: number, end: number): Promise<ObservationLog[]> {
+    const db = await this.dbPromise;
+    const range = IDBKeyRange.bound(start, end);
+    const logs = await db.getAllFromIndex('logs', 'by-timestamp', range);
+    
+    return logs.map((l: any) => ({
+        ...l,
+        measurementType: 'accuracy', 
+        value: l.value !== undefined ? l.value : (l.accuracy || 0)
+    }));
+  }
+
   async addLog(
       goalId: string, 
       value: number, 

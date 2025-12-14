@@ -67,6 +67,9 @@ export interface AppState {
   activeWidgets: WidgetType[];
   fetchWidgets: () => Promise<void>;
   toggleWidget: (widget: WidgetType) => Promise<void>;
+  
+  // New Action for Dashboard
+  fetchDashboardData: () => Promise<void>;
 
   // Actions
   fetchStudents: () => Promise<void>;

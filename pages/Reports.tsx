@@ -180,7 +180,7 @@ export const Reports: React.FC = () => {
         status = 'mastery';
         title = '매우 훌륭한 수행 수준 (Mastery)';
         message = '최근 수행도가 90% 이상으로 매우 안정적입니다. 현재 단계의 목표를 달성한 것으로 보입니다. 일반화(Generalization) 과제로 확장하거나 다음 단계의 목표 설정을 고려해보세요.';
-        color = 'bg-indigo-50 border-indigo-100 text-indigo-900 icon-indigo';
+        color = 'bg-cyan-50 border-cyan-100 text-cyan-900 icon-cyan';
     } 
     // Condition B: Improving (Slope > 0.5)
     else if (slope > 0.5) {
@@ -250,7 +250,7 @@ export const Reports: React.FC = () => {
                         onClick={() => setRangeType(option.value as any)}
                         className={`flex-1 md:px-6 py-2 rounded-lg text-xs font-bold transition-all ${
                             rangeType === option.value 
-                            ? 'bg-indigo-50 text-indigo-600 shadow-sm' 
+                            ? 'bg-cyan-50 text-cyan-600 shadow-sm' 
                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                         }`}
                     >
@@ -325,8 +325,8 @@ export const Reports: React.FC = () => {
                   <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
                       <defs>
                         <linearGradient id="gradient" x1="0" x2="0" y1="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity="0.2" />
-                          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+                          <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
+                          <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
                         </linearGradient>
                       </defs>
                       <path 
@@ -336,7 +336,7 @@ export const Reports: React.FC = () => {
                       />
                       <polyline
                           fill="none"
-                          stroke="#6366f1"
+                          stroke="#06b6d4" // Cyan-500
                           strokeWidth="3"
                           points={getPoints()}
                           vectorEffect="non-scaling-stroke"
@@ -354,7 +354,7 @@ export const Reports: React.FC = () => {
                        return (
                            <div 
                                 key={i}
-                                className="absolute w-3 h-3 bg-white border-[3px] border-indigo-500 rounded-full transform -translate-x-1/2 translate-y-1/2 shadow-sm z-10 hover:scale-150 transition-transform cursor-pointer"
+                                className="absolute w-3 h-3 bg-white border-[3px] border-cyan-500 rounded-full transform -translate-x-1/2 translate-y-1/2 shadow-sm z-10 hover:scale-150 transition-transform cursor-pointer"
                                 style={{ left: `${left}%`, bottom: `${bottom}%` }}
                                 title={`${d.dateLabel}: ${d.avgAccuracy}%`}
                            />
@@ -391,7 +391,7 @@ export const Reports: React.FC = () => {
        {analysisResult && (
            <div className={`mt-8 p-6 rounded-2xl border animate-fade-in flex gap-5 items-start ${analysisResult.color}`}>
                 <div className={`p-3 rounded-full shrink-0 bg-white/60 shadow-sm`}>
-                    {analysisResult.status === 'mastery' && <Trophy size={24} className="text-indigo-600" />}
+                    {analysisResult.status === 'mastery' && <Trophy size={24} className="text-cyan-600" />}
                     {analysisResult.status === 'improving' && <TrendingUp size={24} className="text-green-600" />}
                     {analysisResult.status === 'declining' && <TrendingDown size={24} className="text-red-600" />}
                     {analysisResult.status === 'stagnant_low' && <AlertCircle size={24} className="text-orange-600" />}

@@ -171,7 +171,7 @@ export const StudentDetail: React.FC = () => {
              <div className="flex px-4 md:px-6 gap-6">
                  <button 
                     onClick={() => setActiveTab('goals')}
-                    className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'goals' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'goals' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                  >
                      <ListChecks size={16} />
                      목표 관리
@@ -179,7 +179,7 @@ export const StudentDetail: React.FC = () => {
                  </button>
                  <button 
                     onClick={() => setActiveTab('summary')}
-                    className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                    className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'summary' ? 'border-cyan-600 text-cyan-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                  >
                      <BarChart3 size={16} />
                      분석 요약
@@ -198,7 +198,7 @@ export const StudentDetail: React.FC = () => {
                         <div className="flex justify-end mb-2">
                             <button 
                                 onClick={() => setIsEditMode(!isEditMode)}
-                                className={`text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${isEditMode ? 'bg-indigo-100 text-indigo-600' : 'text-gray-400 hover:bg-gray-100'}`}
+                                className={`text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${isEditMode ? 'bg-cyan-100 text-cyan-600' : 'text-gray-400 hover:bg-gray-100'}`}
                             >
                                 {isEditMode ? <Check size={14} /> : <ArrowUpDown size={14} />}
                                 {isEditMode ? '편집 완료' : '편집'}
@@ -233,7 +233,7 @@ export const StudentDetail: React.FC = () => {
                     {goals.length === 0 && (
                         <div className="py-16 flex flex-col items-center justify-center text-center">
                             <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-dashed border-gray-200">
-                                <Wand2 size={32} className="text-indigo-300" />
+                                <Wand2 size={32} className="text-cyan-300" />
                             </div>
                             <h3 className="text-gray-800 font-bold text-lg mb-2">아직 목표가 없어요</h3>
                             <p className="text-sm text-gray-500 max-w-[200px] mb-6 leading-relaxed">
@@ -241,7 +241,7 @@ export const StudentDetail: React.FC = () => {
                             </p>
                             <button
                                 onClick={openAddSheet}
-                                className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-transform active:scale-95 flex items-center gap-2"
+                                className="px-6 py-3 bg-cyan-600 text-white rounded-xl font-bold hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-transform active:scale-95 flex items-center gap-2"
                             >
                                 <Plus size={18} /> 목표 추가하기
                             </button>
@@ -252,7 +252,7 @@ export const StudentDetail: React.FC = () => {
                     {goals.length > 0 && !isEditMode && (
                         <button
                             onClick={openAddSheet}
-                            className="w-full mt-6 py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-400 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-indigo-300 hover:text-indigo-500 transition-all group"
+                            className="w-full mt-6 py-4 border-2 border-dashed border-gray-300 rounded-2xl text-gray-400 font-bold flex items-center justify-center gap-2 hover:bg-white hover:border-cyan-300 hover:text-cyan-600 transition-all group"
                         >
                             <Plus size={20} className="group-hover:scale-110 transition-transform"/>
                             <span>목표 추가하기</span>
@@ -267,7 +267,7 @@ export const StudentDetail: React.FC = () => {
                     {/* Mini Stats Card */}
                     <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-4 mb-6">
-                             <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                             <div className="p-3 bg-cyan-50 text-cyan-600 rounded-2xl">
                                  <BarChart3 size={24} />
                              </div>
                              <div>
@@ -295,7 +295,7 @@ export const StudentDetail: React.FC = () => {
                         
                         <button 
                             onClick={() => navigate('/reports')}
-                            className="w-full mt-6 py-3 text-sm font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+                            className="w-full mt-6 py-3 text-sm font-bold text-cyan-600 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors"
                         >
                             상세 보고서 보기
                         </button>
@@ -324,7 +324,7 @@ export const StudentDetail: React.FC = () => {
                     <div className="grid grid-cols-3 gap-2 bg-gray-50 p-1 rounded-xl border border-gray-100">
                             <button 
                             onClick={() => setFormStatus('in_progress')}
-                            className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${formStatus === 'in_progress' ? 'bg-white text-indigo-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`py-2 rounded-lg text-xs font-bold flex flex-col items-center gap-1 transition-all ${formStatus === 'in_progress' ? 'bg-white text-cyan-600 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
                             >
                                 <PlayCircle size={16} /> 진행중
                             </button>
@@ -351,7 +351,7 @@ export const StudentDetail: React.FC = () => {
                             type="text"
                             value={formTitle}
                             onChange={(e) => setFormTitle(e.target.value)}
-                            className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-gray-300"
+                            className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-sm font-bold focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 transition-all placeholder:text-gray-300"
                             placeholder="예: 이름 부르면 눈 맞추기"
                             autoFocus
                         />
@@ -361,7 +361,7 @@ export const StudentDetail: React.FC = () => {
                         <textarea 
                             value={formDesc}
                             onChange={(e) => setFormDesc(e.target.value)}
-                            className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-gray-300 resize-none"
+                            className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-sm focus:outline-none focus:border-cyan-500 transition-all placeholder:text-gray-300 resize-none"
                             rows={3}
                             placeholder="구체적인 수행 기준이나 상황 설명"
                         />
@@ -381,7 +381,7 @@ export const StudentDetail: React.FC = () => {
                     <button 
                         onClick={handleFormSubmit}
                         disabled={!formTitle.trim()}
-                        className="flex-1 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
+                        className="flex-1 py-4 bg-cyan-600 text-white rounded-xl font-bold text-lg hover:bg-cyan-700 shadow-lg shadow-cyan-200 transition-all disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-2"
                     >
                         {sheetMode === 'add' ? (
                             <>
@@ -435,7 +435,7 @@ export const StudentDetail: React.FC = () => {
                               }}
                               className={`aspect-square rounded-2xl flex flex-col items-center justify-center transition-all gap-1 ${
                                   formIcon === key 
-                                  ? 'bg-indigo-600 text-white shadow-lg scale-105' 
+                                  ? 'bg-cyan-600 text-white shadow-lg scale-105' 
                                   : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                               }`}
                           >
