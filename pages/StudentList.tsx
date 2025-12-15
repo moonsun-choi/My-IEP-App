@@ -97,8 +97,17 @@ export const StudentList: React.FC = () => {
 
   const handleAddStudent = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!tempStudentName.trim()) return;
-    await addStudent(tempStudentName, tempStudentPhoto);
+    const nameToCheck = tempStudentName.trim();
+    if (!nameToCheck) return;
+
+    // Duplicate Name Check
+    const isDuplicate = students.some(s => s.name === nameToCheck);
+    if (isDuplicate) {
+        const confirmAdd = window.confirm(`'${nameToCheck}' 학생은 이미 등록되어 있습니다.\n그래도 추가하시겠습니까?`);
+        if (!confirmAdd) return;
+    }
+
+    await addStudent(nameToCheck, tempStudentPhoto);
     closeSheet();
   };
 

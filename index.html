@@ -67,6 +67,15 @@
         border-radius: 20px;
       }
 
+      /* 스크롤바 숨김 (가로 스크롤 UX 개선) */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
       /* Liquid Wave Animation for Uploading State */
       @keyframes liquid-wave {
         0% { background-position: 0% 50%; }

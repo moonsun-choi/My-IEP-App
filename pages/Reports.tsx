@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { AlertCircle, TrendingUp, TrendingDown, Minus, Trophy, ChevronDown, Calendar, Target, Check, BarChart2 } from 'lucide-react';
@@ -152,23 +153,23 @@ export const Reports: React.FC = () => {
 
     if (recentAvg >= 90) {
         status = 'mastery'; title = '매우 훌륭한 수행 수준 (Mastery)';
-        message = '최근 수행도가 90% 이상으로 매우 안정적입니다. 현재 단계의 목표를 달성한 것으로 보입니다.';
+        message = '최근 수행도가 90% 이상으로 매우 안정적입니다.\n현재 단계의 목표를 달성한 것으로 보입니다.';
         color = 'bg-cyan-50 border-cyan-100 text-cyan-900';
     } else if (slope > 0.5) {
         status = 'improving'; title = '지속적인 성장세 (Improving)';
-        message = '전반적으로 수행 정확도가 상승하고 있습니다. 현재 교수 전략이 효과적입니다.';
+        message = '전반적으로 수행 정확도가 상승하고 있습니다.\n현재 교수 전략이 효과적입니다.';
         color = 'bg-green-50 border-green-100 text-green-900';
     } else if (slope < -0.5) {
         status = 'declining'; title = '수행도 하락 (Declining)';
-        message = '최근 수행 정확도가 하락하는 추세입니다. 난이도 조절이나 방해 요인 점검이 필요합니다.';
+        message = '최근 수행 정확도가 하락하는 추세입니다.\n난이도 조절이나 방해 요인 점검이 필요합니다.';
         color = 'bg-red-50 border-red-100 text-red-900';
     } else if (recentAvg < 60) {
         status = 'stagnant_low'; title = '도움 필요 (Needs Support)';
-        message = '수행도가 낮은 상태입니다. 과제 단계를 세분화하거나 촉구 수준을 높여주세요.';
+        message = '수행도가 낮은 상태입니다.\n과제 단계를 세분화하거나 촉구 수준을 높여주세요.';
         color = 'bg-orange-50 border-orange-100 text-orange-900';
     } else {
         status = 'stagnant_mid'; title = '수행 유지 (Plateau)';
-        message = '수행도가 일정 수준에서 유지되고 있습니다. 더 강력한 강화제나 환경 변화가 필요할 수 있습니다.';
+        message = '수행도가 일정 수준에서 유지되고 있습니다.\n더 강력한 강화제나 환경 변화가 필요할 수 있습니다.';
         color = 'bg-gray-50 border-gray-200 text-gray-900';
     }
     return { slope, recentAvg, status, title, message, color };
@@ -181,8 +182,8 @@ export const Reports: React.FC = () => {
        <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
            
            {/* Step 1: Student Selector */}
-           {/* 수정됨: w-full 및 max-w-[100vw] 추가 */}
-           <div className="flex overflow-x-auto w-full max-w-[100vw] py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
+           {/* Fixed: Use calc(100% + 3rem) to fill negative margins (-mx-6) on mobile. pl-9 for left spacing, pr-2 for right. */}
+           <div className="flex overflow-x-auto w-[calc(100%+3rem)] max-w-[100vw] py-3 -mx-6 pl-9 pr-2 md:mx-0 md:px-0 md:w-full scrollbar-hide gap-4 snap-x">
                 {students.map((s) => {
                     const isSelected = selectedStudentId === s.id;
                     return (
@@ -401,8 +402,9 @@ export const Reports: React.FC = () => {
                         {analysisResult.status === 'stagnant_mid' && <Minus size={20} className="text-gray-600" />}
                     </div>
                     <div>
-                        <h4 className="font-bold text-lg mb-1">{analysisResult.title}</h4>
-                        <p className="text-sm opacity-90 leading-relaxed">{analysisResult.message}</p>
+                        {/* Fixed: Added break-keep to prevent word splitting, and whitespace-pre-line to respect newlines */}
+                        <h4 className="font-bold text-lg mb-1 break-keep">{analysisResult.title}</h4>
+                        <p className="text-sm opacity-90 leading-relaxed whitespace-pre-line break-keep">{analysisResult.message}</p>
                     </div>
                </div>
            )}

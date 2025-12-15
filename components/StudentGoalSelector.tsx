@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ChevronDown, Target, Check } from 'lucide-react';
 import { Student, Goal } from '../types';
@@ -36,8 +37,8 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
   return (
     <div className="space-y-3">
       {/* 1. Horizontal Scroll Student Profile Bar */}
-      {/* 수정됨: w-full 및 max-w-[100vw] 추가하여 화면 폭 초과 방지 */}
-      <div className="flex overflow-x-auto w-full max-w-[100vw] py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
+      {/* Fixed: Adjusted padding (pl-6, pr-2) for better visual balance on mobile. maintained full-bleed width calculation. */}
+      <div className="flex overflow-x-auto w-[calc(100%+2rem)] max-w-[100vw] py-3 -mx-4 pl-6 pr-2 md:mx-0 md:px-0 md:w-full scrollbar-hide gap-4 snap-x">
           {students.map((s) => {
               const isSelected = selectedStudentId === s.id;
               
@@ -119,16 +120,3 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
     </div>
   );
 };
-
-// Add styles for hiding scrollbar but keeping functionality
-const style = document.createElement('style');
-style.textContent = `
-  .scrollbar-hide::-webkit-scrollbar {
-      display: none;
-  }
-  .scrollbar-hide {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-  }
-`;
-document.head.appendChild(style);

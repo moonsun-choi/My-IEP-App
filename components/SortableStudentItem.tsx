@@ -141,6 +141,10 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
       }
   };
 
+  // Counts
+  const totalCount = goals.length;
+  const activeCount = goals.filter(g => g.status === 'in_progress').length;
+
   return (
     <div className="relative group touch-pan-y mb-1">
       {/* Background Actions (Swipe Reveal) */}
@@ -239,11 +243,11 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
           <div className="flex items-center gap-2">
                <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
                   <Target size={12} className="text-gray-400" />
-                  <span>전체 {goals.length}</span>
+                  <span>전체 {totalCount}</span>
                </div>
                <div className="flex items-center gap-1.5 text-[11px] font-bold text-cyan-600 bg-cyan-50 px-2 py-1 rounded-md">
                   <PlayCircle size={12} className="text-cyan-500" />
-                  <span>진행 {goals.length}</span>
+                  <span>진행 {activeCount}</span>
                </div>
           </div>
         </div>
