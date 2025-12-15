@@ -1,20 +1,17 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { AlertCircle, TrendingUp, TrendingDown, Minus, Trophy } from 'lucide-react';
-import { StudentGoalSelector } from '../components/StudentGoalSelector';
+import { AlertCircle, TrendingUp, TrendingDown, Minus, Trophy, ChevronDown, Calendar, Target, Check, BarChart2 } from 'lucide-react';
 import { getGoalIcon } from '../utils/goalIcons';
 import { useSearchParams } from 'react-router-dom';
 
 export const Reports: React.FC = () => {
   const { students, goals, logs, fetchStudents, fetchGoals, fetchStudentLogs } = useStore();
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
-  const [selectedGoalId, setSelectedGoalId] = useState<string>('all'); // 'all' or specific goalId
+  const [selectedGoalId, setSelectedGoalId] = useState<string>('all');
   
-  // URL Params
   const [searchParams] = useSearchParams();
 
-  // Date Range State
   const [rangeType, setRangeType] = useState<'1w' | '1m' | '3m' | 'custom'>('1w');
   const [customStart, setCustomStart] = useState<string>(() => {
     const d = new Date();
@@ -29,19 +26,12 @@ export const Reports: React.FC = () => {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Handle URL param or default selection
   useEffect(() => {
     if (students.length > 0) {
       const paramId = searchParams.get('studentId');
-      
-      // If URL param exists and is valid, use it.
       if (paramId && students.some(s => s.id === paramId)) {
-        if (selectedStudentId !== paramId) {
-            setSelectedStudentId(paramId);
-        }
-      } 
-      // Otherwise default to first student if nothing selected
-      else if (!selectedStudentId) {
+        if (selectedStudentId !== paramId) setSelectedStudentId(paramId);
+      } else if (!selectedStudentId) {
         setSelectedStudentId(students[0].id);
       }
     }
@@ -50,8 +40,8 @@ export const Reports: React.FC = () => {
   useEffect(() => {
     if (selectedStudentId) {
         fetchGoals(selectedStudentId);
-        fetchStudentLogs(selectedStudentId); // Fetch logs for the student to populate charts
-        setSelectedGoalId('all'); // Reset goal filter when student changes
+        fetchStudentLogs(selectedStudentId);
+        setSelectedGoalId('all');
     }
   }, [selectedStudentId, fetchGoals, fetchStudentLogs]);
   
@@ -60,12 +50,11 @@ export const Reports: React.FC = () => {
   const studentGoalIds = studentGoals.map(g => g.id);
   
   const currentGoal = studentGoals.find(g => g.id === selectedGoalId);
+  const CurrentGoalIcon = currentGoal ? getGoalIcon(currentGoal.icon) : Target;
 
-  // Calculate Start/End Date objects based on selection
   const { startDate, endDate } = useMemo(() => {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
-    
     const start = new Date();
     start.setHours(0, 0, 0, 0);
 
@@ -77,31 +66,23 @@ export const Reports: React.FC = () => {
         return { startDate: s, endDate: e };
     }
 
-    let daysToSubtract = 6; // 1w (7 days total including today)
+    let daysToSubtract = 6;
     if (rangeType === '1m') daysToSubtract = 29;
     if (rangeType === '3m') daysToSubtract = 89;
 
     start.setDate(end.getDate() - daysToSubtract);
-    
     return { startDate: start, endDate: end };
   }, [rangeType, customStart, customEnd]);
 
-  // Chart Data Aggregation
   const chartData = useMemo(() => {
-    // 1. Filter logs for this student
     let relevantLogs = logs.filter(l => studentGoalIds.includes(l.goal_id));
-    
-    // 2. Filter by specific goal if selected
     if (selectedGoalId !== 'all') {
         relevantLogs = relevantLogs.filter(l => l.goal_id === selectedGoalId);
     }
     
-    // Create Date Array from startDate to endDate
     const days = [];
     const current = new Date(startDate);
     const end = new Date(endDate);
-    
-    // Prevent excessive loop if dates are invalid
     let safetyCounter = 0;
     while (current <= end && safetyCounter < 365) {
         days.push(new Date(current));
@@ -112,12 +93,10 @@ export const Reports: React.FC = () => {
     return days.map(day => {
         const dateStr = day.toDateString();
         const dayLogs = relevantLogs.filter(l => new Date(l.timestamp).toDateString() === dateStr);
-        
         let avg = 0;
         if (dayLogs.length > 0) {
             avg = Math.round(dayLogs.reduce((acc, curr) => acc + (curr.value || 0), 0) / dayLogs.length);
         }
-
         return {
             date: day,
             dateLabel: day.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }),
@@ -129,50 +108,34 @@ export const Reports: React.FC = () => {
 
   const validDataPoints = chartData.filter(d => d.avgAccuracy !== null);
   const totalLogsCount = validDataPoints.reduce((acc, cur) => acc + cur.count, 0);
+  const dayCount = chartData.length;
 
-  // SVG Chart Helper
+  // Chart Rendering Helper
   const chartHeight = 200;
-  
   const getPoints = () => {
       if (validDataPoints.length === 0) return '';
-      
       let path = '';
       let isFirst = true;
       const totalPoints = chartData.length;
       const divider = totalPoints > 1 ? totalPoints - 1 : 1; 
-
       chartData.forEach((d, i) => {
           if (d.avgAccuracy !== null) {
               const x = (i / divider) * 100;
               const y = chartHeight - (d.avgAccuracy / 100) * chartHeight;
-              
-              if (isFirst) {
-                  path += `M ${x},${y}`;
-                  isFirst = false;
-                  if (totalPoints === 1) {
-                      path += ` L 100,${y}`;
-                  }
-              } else {
-                  path += ` L ${x},${y}`;
-              }
+              if (isFirst) { path += `M ${x},${y}`; isFirst = false; if (totalPoints === 1) path += ` L 100,${y}`; } 
+              else { path += ` L ${x},${y}`; }
           }
       });
       return path;
   };
 
-  // --- Advanced Analysis Algorithm ---
   const analysisResult = useMemo(() => {
     if (validDataPoints.length < 2) return null;
-
-    // 1. Calculate Recent Average (Last 3 valid days or all if less)
     const recentPoints = validDataPoints.slice(-3);
     const recentAvg = recentPoints.reduce((acc, curr) => acc + (curr.avgAccuracy || 0), 0) / recentPoints.length;
 
-    // 2. Linear Regression for Slope (Trend)
-    // x = index, y = accuracy
     const n = validDataPoints.length;
     let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-
     validDataPoints.forEach((d, i) => {
         const val = d.avgAccuracy || 0;
         sumX += i;
@@ -180,262 +143,273 @@ export const Reports: React.FC = () => {
         sumXY += i * val;
         sumXX += i * i;
     });
-
-    // Slope formula: (n*Σxy - Σx*Σy) / (n*Σx² - (Σx)²)
     const denominator = (n * sumXX - sumX * sumX);
     const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
 
-    // 3. Determine Status and Message
     let status: 'mastery' | 'improving' | 'declining' | 'stagnant_low' | 'stagnant_mid' = 'stagnant_mid';
     let title = '';
     let message = '';
     let color = '';
 
-    // Condition A: Mastery / High Maintenance (> 90%)
     if (recentAvg >= 90) {
-        status = 'mastery';
-        title = '매우 훌륭한 수행 수준 (Mastery)';
-        message = '최근 수행도가 90% 이상으로 매우 안정적입니다. 현재 단계의 목표를 달성한 것으로 보입니다. 일반화(Generalization) 과제로 확장하거나 다음 단계의 목표 설정을 고려해보세요.';
-        color = 'bg-cyan-50 border-cyan-100 text-cyan-900 icon-cyan';
-    } 
-    // Condition B: Improving (Slope > 0.5)
-    else if (slope > 0.5) {
-        status = 'improving';
-        title = '지속적인 성장세 (Improving)';
-        message = '전반적으로 수행 정확도가 상승하고 있습니다. 현재 적용 중인 교수 전략과 강화(Reinforcement)가 효과적으로 작용하고 있습니다. 현재 방법을 유지하세요.';
-        color = 'bg-green-50 border-green-100 text-green-900 icon-green';
+        status = 'mastery'; title = '매우 훌륭한 수행 수준 (Mastery)';
+        message = '최근 수행도가 90% 이상으로 매우 안정적입니다. 현재 단계의 목표를 달성한 것으로 보입니다.';
+        color = 'bg-cyan-50 border-cyan-100 text-cyan-900';
+    } else if (slope > 0.5) {
+        status = 'improving'; title = '지속적인 성장세 (Improving)';
+        message = '전반적으로 수행 정확도가 상승하고 있습니다. 현재 교수 전략이 효과적입니다.';
+        color = 'bg-green-50 border-green-100 text-green-900';
+    } else if (slope < -0.5) {
+        status = 'declining'; title = '수행도 하락 (Declining)';
+        message = '최근 수행 정확도가 하락하는 추세입니다. 난이도 조절이나 방해 요인 점검이 필요합니다.';
+        color = 'bg-red-50 border-red-100 text-red-900';
+    } else if (recentAvg < 60) {
+        status = 'stagnant_low'; title = '도움 필요 (Needs Support)';
+        message = '수행도가 낮은 상태입니다. 과제 단계를 세분화하거나 촉구 수준을 높여주세요.';
+        color = 'bg-orange-50 border-orange-100 text-orange-900';
+    } else {
+        status = 'stagnant_mid'; title = '수행 유지 (Plateau)';
+        message = '수행도가 일정 수준에서 유지되고 있습니다. 더 강력한 강화제나 환경 변화가 필요할 수 있습니다.';
+        color = 'bg-gray-50 border-gray-200 text-gray-900';
     }
-    // Condition C: Declining (Slope < -0.5)
-    else if (slope < -0.5) {
-        status = 'declining';
-        title = '수행도 하락 (Declining)';
-        message = '최근 수행 정확도가 하락하는 추세입니다. 과제의 난이도가 갑자기 높아졌거나, 학생의 컨디션 또는 환경적인 방해 요인이 있는지 점검이 필요합니다.';
-        color = 'bg-red-50 border-red-100 text-red-900 icon-red';
-    }
-    // Condition D: Stagnant Low (< 60%)
-    else if (recentAvg < 60) {
-        status = 'stagnant_low';
-        title = '도움 필요 (Needs Support)';
-        message = '수행도가 낮은 상태에서 정체되어 있습니다. 현재 과제가 학생에게 어려울 수 있습니다. 과제를 더 작은 단위로 나누거나(Task Analysis), 촉구(Prompt) 수준을 높여 성공 경험을 만들어주세요.';
-        color = 'bg-orange-50 border-orange-100 text-orange-900 icon-orange';
-    }
-    // Condition E: Stagnant Mid (60-90%)
-    else {
-        status = 'stagnant_mid';
-        title = '수행 유지 및 정체 (Plateau)';
-        message = '수행도가 일정 수준에서 유지되고 있으나 뚜렷한 상승폭은 보이지 않습니다. 변동성을 줄이기 위해 환경을 통제하거나, 더 강력한 강화제를 사용하여 동기를 부여해보세요.';
-        color = 'bg-gray-50 border-gray-200 text-gray-900 icon-gray';
-    }
-
     return { slope, recentAvg, status, title, message, color };
   }, [validDataPoints]);
 
-  const dayCount = chartData.length;
-
   return (
-    <div className="p-4 md:p-8 pb-20 max-w-5xl mx-auto w-full">
-       <div className="flex justify-between items-center mb-8">
-          <h2 className="font-bold text-2xl text-gray-800">보고서</h2>
-       </div>
-
-       {/* Selectors Container - Replaced with reusable component */}
-       <div className="mb-6">
-           <StudentGoalSelector
-             students={students}
-             goals={studentGoals}
-             selectedStudentId={selectedStudentId}
-             selectedGoalId={selectedGoalId}
-             onSelectStudent={setSelectedStudentId}
-             onSelectGoal={setSelectedGoalId}
-             currentStudent={currentStudent}
-             showAllGoalsOption={true}
-           />
-       </div>
-        
-        {/* Date Range Selector */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-            <div className="flex gap-2 bg-white p-1 rounded-xl w-full md:w-auto border border-gray-100 shadow-sm">
-                {[
-                    { label: '1주일', value: '1w' },
-                    { label: '1개월', value: '1m' },
-                    { label: '3개월', value: '3m' },
-                    { label: '직접 설정', value: 'custom' }
-                ].map((option) => (
-                    <button
-                        key={option.value}
-                        onClick={() => setRangeType(option.value as any)}
-                        className={`flex-1 md:px-6 py-2 rounded-lg text-xs font-bold transition-all ${
-                            rangeType === option.value 
-                            ? 'bg-cyan-50 text-cyan-600 shadow-sm' 
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                        }`}
-                    >
-                        {option.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Custom Date Pickers */}
-            {rangeType === 'custom' && (
-                <div className="flex gap-4 animate-fade-in w-full md:w-auto">
-                    <div className="flex-1 md:w-40 bg-white border border-gray-200 rounded-xl px-4 py-2 flex flex-col justify-center">
-                        <label className="text-[10px] text-gray-400 font-bold mb-0.5">시작일</label>
-                        <input 
-                            type="date" 
-                            value={customStart}
-                            onChange={(e) => setCustomStart(e.target.value)}
-                            className="text-xs font-bold text-gray-800 bg-transparent outline-none w-full"
-                        />
-                    </div>
-                    <div className="flex-1 md:w-40 bg-white border border-gray-200 rounded-xl px-4 py-2 flex flex-col justify-center">
-                        <label className="text-[10px] text-gray-400 font-bold mb-0.5">종료일</label>
-                        <input 
-                            type="date" 
-                            value={customEnd}
-                            onChange={(e) => setCustomEnd(e.target.value)}
-                            className="text-xs font-bold text-gray-800 bg-transparent outline-none w-full"
-                        />
-                    </div>
-                </div>
-            )}
-        </div>
-
-       {/* Chart Container */}
-       <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-gray-100 min-h-[350px] relative">
-          <div className="flex justify-between items-end mb-8">
-              <div>
-                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wide">평균 정확도 추이</h3>
-                  <div className="text-4xl font-black text-gray-800 mt-2 tracking-tight">
-                      {validDataPoints.length > 0 
-                          ? Math.round(validDataPoints.reduce((a, b) => a + (b.avgAccuracy || 0), 0) / validDataPoints.length) + '%' 
-                          : '-'}
-                  </div>
-              </div>
-              <div className="text-xs text-gray-400 text-right font-medium">
-                  총 <span className="text-gray-800 font-bold">{totalLogsCount}회</span> 기록<br/>
-                  {rangeType === 'custom' 
-                    ? `${startDate.toLocaleDateString()} ~ ${endDate.toLocaleDateString()}` 
-                    : `${dayCount}일간 데이터`}
-              </div>
-          </div>
-
-          {validDataPoints.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-gray-300 py-20">
-                  <AlertCircle size={48} className="mb-4 opacity-30" />
-                  <p className="text-sm font-medium">기간 내 데이터가 없습니다.</p>
-              </div>
-          ) : (
-              <div className="relative h-[240px] w-full">
-                  {/* Grid Lines */}
-                  <div className="absolute inset-0 flex flex-col justify-between text-gray-200">
-                      {[0, 1, 2, 3, 4].map(i => (
-                          <div key={i} className="border-b border-gray-100 w-full h-0 flex items-center">
-                              <span className="text-[10px] text-gray-300 ml-[-24px] absolute w-6 text-right pr-2">
-                                  {100 - (i * 25)}
-                              </span>
-                          </div>
-                      ))}
-                  </div>
-
-                  {/* SVG Chart */}
-                  <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="gradient" x1="0" x2="0" y1="0" y2="1">
-                          <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
-                          <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
-                        </linearGradient>
-                      </defs>
-                      <path 
-                          d={`${getPoints()} L 100,100 L 0,100 Z`} // Close path for fill if needed, but here we use stroke
-                          fill="url(#gradient)" // Optional fill
-                          className="opacity-50"
-                      />
-                      <polyline
-                          fill="none"
-                          stroke="#06b6d4" // Cyan-500
-                          strokeWidth="3"
-                          points={getPoints()}
-                          vectorEffect="non-scaling-stroke"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                      />
-                  </svg>
-
-                   {/* Data Points */}
-                   {dayCount <= 30 && chartData.map((d, i) => {
-                       if(d.avgAccuracy === null) return null;
-                       const divider = (chartData.length > 1) ? chartData.length - 1 : 1;
-                       const left = (i / divider) * 100;
-                       const bottom = d.avgAccuracy;
-                       return (
-                           <div 
-                                key={i}
-                                className="absolute w-3 h-3 bg-white border-[3px] border-cyan-500 rounded-full transform -translate-x-1/2 translate-y-1/2 shadow-sm z-10 hover:scale-150 transition-transform cursor-pointer"
-                                style={{ left: `${left}%`, bottom: `${bottom}%` }}
-                                title={`${d.dateLabel}: ${d.avgAccuracy}%`}
-                           />
-                       )
-                   })}
-
-                  {/* X-Axis Labels (Adaptive) */}
-                  <div className="absolute top-[100%] left-0 right-0 flex justify-between mt-3 px-1">
-                      {chartData.map((d, i) => {
-                          // Adaptive Labeling Logic
-                          let showLabel = false;
-                          const step = Math.max(1, Math.floor((chartData.length - 1) / (window.innerWidth > 768 ? 8 : 4))); 
-
-                          if (i % step === 0 || i === chartData.length - 1) {
-                              showLabel = true;
-                          }
-
-                          return (
-                              <div 
-                                key={i} 
-                                className="text-[10px] text-gray-400 absolute transform -translate-x-1/2 whitespace-nowrap font-medium"
-                                style={{ left: `${(i / (Math.max(1, chartData.length - 1))) * 100}%`, opacity: showLabel ? 1 : 0 }}
-                              >
-                                  {d.dateLabel}
+    <div className="pb-24 max-w-5xl mx-auto w-full">
+       
+       {/* --- 1. Dashboard Header (Cyan Theme) --- */}
+       <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
+           
+           {/* Step 1: Student Selector */}
+           {/* Adjusted padding (py-3) to prevent clipping of scaled items */}
+           <div className="w-full overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+              <div className="flex items-start gap-4 min-w-min px-1">
+                  {students.map((s) => {
+                      const isSelected = selectedStudentId === s.id;
+                      return (
+                          <button 
+                            key={s.id}
+                            onClick={() => setSelectedStudentId(s.id)}
+                            className="flex flex-col items-center gap-2 shrink-0 group transition-all"
+                          >
+                              <div className={`
+                                  rounded-full p-[3px] transition-all duration-300 relative
+                                  ${isSelected 
+                                    ? 'bg-gradient-to-tr from-cyan-400 to-blue-400 shadow-md scale-105' 
+                                    : 'bg-transparent border-2 border-slate-200 hover:border-cyan-300'
+                                  }
+                              `}>
+                                  {/* Reduced Profile Size: w-12 h-12 */}
+                                  <div className="w-12 h-12 rounded-full border-[3px] border-white bg-slate-100 overflow-hidden relative">
+                                      <img src={s.photo_uri} alt={s.name} className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`} />
+                                  </div>
+                                  {isSelected && (
+                                      <div className="absolute bottom-0 right-0 bg-cyan-600 text-white rounded-full p-0.5 border-2 border-white shadow-sm z-10">
+                                          <Check size={8} strokeWidth={4} />
+                                      </div>
+                                  )}
                               </div>
-                          );
-                      })}
-                  </div>
+                              <span className={`text-xs max-w-[60px] truncate text-center transition-colors ${isSelected ? 'font-bold text-slate-800' : 'text-slate-500 font-medium'}`}>
+                                  {s.name}
+                              </span>
+                          </button>
+                      );
+                  })}
               </div>
-          )}
+           </div>
+
+           {/* Step 2: Controls Card (Integrated) */}
+           <div className="bg-white rounded-2xl p-2 shadow-sm border border-cyan-100/50 mt-2">
+               <div className="flex flex-col md:flex-row gap-2">
+                   {/* Goal Selector */}
+                   <div className="relative flex-1">
+                        <select 
+                            value={selectedGoalId}
+                            onChange={(e) => setSelectedGoalId(e.target.value)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            disabled={studentGoals.length === 0}
+                        >
+                            <option value="all">전체 목표 종합</option>
+                            {studentGoals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+                        </select>
+                        <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${selectedGoalId === 'all' ? 'bg-cyan-600 text-white' : 'bg-cyan-50 text-cyan-600'}`}>
+                                 {selectedGoalId === 'all' ? <Target size={20} /> : <CurrentGoalIcon size={20} />}
+                             </div>
+                             <div className="flex-1 min-w-0 text-left">
+                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">분석 목표</div>
+                                 <div className="text-sm font-bold text-slate-800 truncate">
+                                     {selectedGoalId === 'all' ? '전체 목표 종합' : currentGoal?.title}
+                                 </div>
+                             </div>
+                             <ChevronDown size={18} className="text-slate-400" />
+                        </div>
+                   </div>
+
+                   {/* Divider (Mobile hidden) */}
+                   <div className="w-px bg-slate-100 my-2 hidden md:block"></div>
+                   <div className="h-px bg-slate-100 mx-2 md:hidden"></div>
+
+                   {/* Period Tabs */}
+                   <div className="flex-1 flex flex-col justify-center p-2">
+                        <div className="flex bg-slate-100 p-1 rounded-xl">
+                            {[{l:'1주',v:'1w'}, {l:'1개월',v:'1m'}, {l:'3개월',v:'3m'}, {l:'직접',v:'custom'}].map((opt) => (
+                                <button
+                                    key={opt.v}
+                                    onClick={() => setRangeType(opt.v as any)}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                        rangeType === opt.v 
+                                        ? 'bg-white text-cyan-600 shadow-sm text-shadow-sm' 
+                                        : 'text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    {opt.l}
+                                </button>
+                            ))}
+                        </div>
+                   </div>
+               </div>
+
+               {/* Custom Date Inputs (Conditional) */}
+               {rangeType === 'custom' && (
+                    <div className="border-t border-slate-100 mt-2 pt-3 px-3 pb-2 animate-fade-in flex gap-3">
+                        <div className="flex-1">
+                            <label className="text-[10px] text-slate-400 font-bold mb-1 block">시작일</label>
+                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                                <Calendar size={14} className="text-slate-400" />
+                                <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 w-full outline-none" />
+                            </div>
+                        </div>
+                        <div className="flex-1">
+                            <label className="text-[10px] text-slate-400 font-bold mb-1 block">종료일</label>
+                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
+                                <Calendar size={14} className="text-slate-400" />
+                                <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 w-full outline-none" />
+                            </div>
+                        </div>
+                    </div>
+               )}
+           </div>
        </div>
 
-       {/* Analysis Result Card */}
-       {analysisResult && (
-           <div className={`mt-8 p-5 md:p-6 rounded-2xl border animate-fade-in flex gap-3 md:gap-5 items-start ${analysisResult.color}`}>
-                <div className={`p-2.5 md:p-3 rounded-full shrink-0 bg-white/60 shadow-sm`}>
-                    {analysisResult.status === 'mastery' && <Trophy className="w-5 h-5 md:w-6 md:h-6 text-cyan-600" />}
-                    {analysisResult.status === 'improving' && <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-green-600" />}
-                    {analysisResult.status === 'declining' && <TrendingDown className="w-5 h-5 md:w-6 md:h-6 text-red-600" />}
-                    {analysisResult.status === 'stagnant_low' && <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />}
-                    {analysisResult.status === 'stagnant_mid' && <Minus className="w-5 h-5 md:w-6 md:h-6 text-gray-600" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg mb-2 flex flex-wrap items-center gap-2">
-                        <span className="break-keep leading-tight">{analysisResult.title}</span>
-                        {selectedGoalId !== 'all' && (
-                            <span className="text-xs font-normal opacity-70 border border-current px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
-                                {(() => {
-                                    const GoalIcon = currentGoal ? getGoalIcon(currentGoal.icon) : null;
-                                    return GoalIcon && <GoalIcon size={12} />;
-                                })()}
-                                <span className="truncate max-w-[100px]">{currentGoal?.title}</span>
-                            </span>
-                        )}
-                    </h3>
-                    <p className="leading-relaxed text-sm md:text-base opacity-90 font-medium break-keep text-left">
-                        {analysisResult.message}
-                    </p>
-                    <div className="mt-3 text-xs font-bold opacity-60 flex flex-wrap gap-x-4 gap-y-1">
-                        <span>최근 평균: {Math.round(analysisResult.recentAvg)}%</span>
-                        <span>추세 기울기: {analysisResult.slope.toFixed(2)}</span>
+       {/* --- 2. Chart Section --- */}
+       <div className="px-4 md:px-0">
+           {/* Chart Container */}
+           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[300px] relative mb-6">
+                <div className="flex justify-between items-end mb-8">
+                    <div>
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1">
+                            평균 수행도
+                        </h3>
+                        <div className="text-4xl font-black text-slate-800 mt-1 tracking-tight">
+                            {validDataPoints.length > 0 
+                                ? Math.round(validDataPoints.reduce((a, b) => a + (b.avgAccuracy || 0), 0) / validDataPoints.length) + '%' 
+                                : '-'}
+                        </div>
+                    </div>
+                    <div className="text-xs text-slate-400 text-right font-medium">
+                        <span className="text-slate-800 font-bold">{totalLogsCount}회</span> 기록<br/>
+                        {rangeType === 'custom' 
+                            ? `${startDate.toLocaleDateString()} ~ ${endDate.toLocaleDateString()}` 
+                            : `${dayCount}일간`}
                     </div>
                 </div>
+
+                {validDataPoints.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center text-slate-300 py-16">
+                        <AlertCircle size={40} className="mb-3 opacity-30" />
+                        <p className="text-xs font-bold">데이터가 없습니다</p>
+                    </div>
+                ) : (
+                    <div className="relative h-[200px] w-full">
+                        {/* Grid */}
+                        <div className="absolute inset-0 flex flex-col justify-between text-slate-200">
+                            {[0, 1, 2, 3, 4].map(i => (
+                                <div key={i} className="border-b border-slate-50 w-full h-0 flex items-center">
+                                    <span className="text-[9px] text-slate-300 ml-[-20px] absolute w-6 text-right pr-2">
+                                        {100 - (i * 25)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Chart Line */}
+                        <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
+                            <defs>
+                                <linearGradient id="gradientReport" x1="0" x2="0" y1="0" y2="1">
+                                    <stop offset="0%" stopColor="#0891b2" stopOpacity="0.1" />
+                                    <stop offset="100%" stopColor="#0891b2" stopOpacity="0" />
+                                </linearGradient>
+                            </defs>
+                            <path 
+                                d={`${getPoints()} L 100,100 L 0,100 Z`}
+                                fill="url(#gradientReport)"
+                            />
+                            <polyline
+                                fill="none"
+                                stroke="#0891b2" // Cyan-600
+                                strokeWidth="3"
+                                points={getPoints()}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        </svg>
+
+                        {/* Dots */}
+                        {dayCount <= 30 && chartData.map((d, i) => {
+                            if(d.avgAccuracy === null) return null;
+                            const divider = (chartData.length > 1) ? chartData.length - 1 : 1;
+                            const left = (i / divider) * 100;
+                            const bottom = d.avgAccuracy;
+                            return (
+                                <div 
+                                    key={i}
+                                    className="absolute w-2.5 h-2.5 bg-white border-[2px] border-cyan-500 rounded-full transform -translate-x-1/2 translate-y-1/2 shadow-sm z-10"
+                                    style={{ left: `${left}%`, bottom: `${bottom}%` }}
+                                />
+                            )
+                        })}
+
+                        {/* Labels */}
+                        <div className="absolute top-[100%] left-0 right-0 flex justify-between mt-2 px-1">
+                            {chartData.map((d, i) => {
+                                let showLabel = false;
+                                const step = Math.max(1, Math.floor((chartData.length - 1) / 5)); 
+                                if (i % step === 0 || i === chartData.length - 1) showLabel = true;
+                                if (!showLabel) return null;
+                                return (
+                                    <div 
+                                        key={i} 
+                                        className="text-[9px] text-slate-400 absolute transform -translate-x-1/2 whitespace-nowrap font-bold"
+                                        style={{ left: `${(i / (Math.max(1, chartData.length - 1))) * 100}%` }}
+                                    >
+                                        {d.dateLabel}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
            </div>
-       )}
+
+           {/* Analysis Result */}
+           {analysisResult && (
+               <div className={`p-5 rounded-2xl border flex gap-4 items-start ${analysisResult.color} bg-opacity-50`}>
+                    <div className="p-2 rounded-full bg-white shadow-sm shrink-0">
+                        {analysisResult.status === 'mastery' && <Trophy size={20} className="text-cyan-600" />}
+                        {analysisResult.status === 'improving' && <TrendingUp size={20} className="text-green-600" />}
+                        {analysisResult.status === 'declining' && <TrendingDown size={20} className="text-red-600" />}
+                        {analysisResult.status === 'stagnant_low' && <AlertCircle size={20} className="text-orange-600" />}
+                        {analysisResult.status === 'stagnant_mid' && <Minus size={20} className="text-gray-600" />}
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-lg mb-1">{analysisResult.title}</h4>
+                        <p className="text-sm opacity-90 leading-relaxed">{analysisResult.message}</p>
+                    </div>
+               </div>
+           )}
+       </div>
     </div>
   );
 };

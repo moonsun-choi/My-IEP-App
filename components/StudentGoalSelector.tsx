@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ChevronDown, Target } from 'lucide-react';
+import { ChevronDown, Target, Check } from 'lucide-react';
 import { Student, Goal } from '../types';
 import { getGoalIcon } from '../utils/goalIcons';
 
@@ -35,31 +35,70 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
   };
 
   return (
-    <div className="flex flex-col md:flex-row gap-4">
-      {/* Student Selector */}
-      <div className="relative flex-1 bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3 transition-all hover:border-cyan-300 hover:shadow-md cursor-pointer group">
-        <select 
-            value={selectedStudentId}
-            onChange={(e) => onSelectStudent(e.target.value)}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-        >
-            {students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 shrink-0 border border-gray-100 pointer-events-none">
-          {currentStudent && <img src={currentStudent.photo_uri} alt="" className="w-full h-full object-cover" />}
-        </div>
-        <div className="flex-1 min-w-0 pointer-events-none">
-          <div className="w-full text-base font-bold text-gray-700 truncate">
-              {currentStudent?.name || '학생 선택'}
+    <div className="flex flex-col gap-3">
+      {/* 1. Horizontal Scroll Student Profile Bar (Instagram Story Style) */}
+      {/* Updated: Increased vertical padding (py-3) to secure more height */}
+      <div className="w-full overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+          <div className="flex items-start gap-4 min-w-min px-1">
+              {students.map((s) => {
+                  const isSelected = selectedStudentId === s.id;
+                  
+                  return (
+                      <button 
+                        key={s.id}
+                        onClick={() => onSelectStudent(s.id)}
+                        className="flex flex-col items-center gap-1.5 shrink-0 group transition-all"
+                      >
+                          {/* Avatar Ring Container */}
+                          <div className={`
+                              rounded-full p-[3px] transition-all duration-300 relative
+                              ${isSelected 
+                                ? 'bg-gradient-to-tr from-cyan-400 to-blue-500 shadow-md scale-105' 
+                                : 'bg-transparent border border-gray-200 hover:border-cyan-200'
+                              }
+                          `}>
+                              {/* Avatar Image */}
+                              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border-2 border-white bg-gray-100 overflow-hidden relative">
+                                  <img 
+                                    src={s.photo_uri} 
+                                    alt={s.name} 
+                                    className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}
+                                  />
+                                  {isSelected && (
+                                      <div className="absolute inset-0 bg-black/10" />
+                                  )}
+                              </div>
+                              
+                              {/* Selection Indicator (Check Icon) */}
+                              {isSelected && (
+                                  <div className="absolute bottom-0 right-0 bg-cyan-600 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
+                                      <Check size={10} strokeWidth={4} />
+                                  </div>
+                              )}
+                          </div>
+                          
+                          {/* Name Label */}
+                          <span className={`
+                              text-xs md:text-sm max-w-[70px] truncate text-center transition-colors
+                              ${isSelected ? 'font-bold text-gray-800' : 'text-gray-500 font-medium group-hover:text-gray-700'}
+                          `}>
+                              {s.name}
+                          </span>
+                      </button>
+                  );
+              })}
+              
+              {/* Empty State / Add Hint (Optional) */}
+              {students.length === 0 && (
+                  <div className="flex flex-col items-center justify-center w-16 h-16 rounded-full bg-gray-50 border border-dashed border-gray-300 text-gray-400">
+                      <span className="text-[10px]">학생 없음</span>
+                  </div>
+              )}
           </div>
-          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-cyan-400">Student</div>
-        </div>
-        <ChevronDown size={16} className="text-gray-400 group-hover:text-cyan-400 pointer-events-none" />
       </div>
 
-      {/* Goal Selector */}
-      <div className="relative flex-[2] bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3 transition-all hover:border-cyan-300 hover:shadow-md cursor-pointer group">
+      {/* 2. Goal Selector (Dropdown) */}
+      <div className="relative bg-white p-3 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3 transition-all hover:border-cyan-300 hover:shadow-md cursor-pointer group">
         <select 
             value={selectedGoalId}
             onChange={(e) => onSelectGoal(e.target.value)}
@@ -71,17 +110,31 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
             {goals.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
         </select>
 
-        <div className="w-10 h-10 rounded-full bg-cyan-50 text-cyan-500 flex items-center justify-center shrink-0 border border-cyan-100 pointer-events-none">
-          {showAllGoalsOption && selectedGoalId === 'all' ? <Target size={20} /> : <GoalIcon size={20} />}
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border transition-colors ${selectedGoalId === 'all' ? 'bg-indigo-50 text-indigo-500 border-indigo-100' : 'bg-cyan-50 text-cyan-600 border-cyan-100'}`}>
+          {showAllGoalsOption && selectedGoalId === 'all' ? <Target size={18} /> : <GoalIcon size={18} />}
         </div>
+        
         <div className="flex-1 min-w-0 pointer-events-none">
-          <div className="w-full text-base font-bold text-gray-700 truncate">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5 group-hover:text-cyan-500 transition-colors">Target Goal</div>
+          <div className="w-full text-sm font-bold text-gray-700 truncate">
               {getGoalTitleDisplay()}
           </div>
-          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider group-hover:text-cyan-400">Target Goal</div>
         </div>
-        <ChevronDown size={16} className="text-gray-400 group-hover:text-cyan-400 pointer-events-none" />
+        <ChevronDown size={16} className="text-gray-400 group-hover:text-cyan-400 pointer-events-none transition-colors" />
       </div>
     </div>
   );
 };
+
+// Add styles for hiding scrollbar but keeping functionality
+const style = document.createElement('style');
+style.textContent = `
+  .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+  }
+  .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
+`;
+document.head.appendChild(style);

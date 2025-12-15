@@ -175,15 +175,8 @@ export const StudentList: React.FC = () => {
 
   return (
     <div className={`pb-24 p-4 md:p-8 max-w-3xl mx-auto w-full min-h-screen transition-colors ${isEditMode ? 'bg-cyan-50/30' : ''}`}>
-      {/* Header */}
-      <header className="mb-6 flex justify-between items-center sticky top-0 z-10 bg-slate-50/90 backdrop-blur-sm py-2">
-        <div>
-            <h1 className="text-2xl font-bold text-gray-800">나의 학급</h1>
-            <p className="text-sm text-gray-500 mt-1">
-                {isEditMode ? '학생 순서를 변경하거나 관리하세요.' : '목표를 관리할 학생을 선택하세요.'}
-            </p>
-        </div>
-        
+      {/* Header - Title Removed, Edit Button aligned right */}
+      <header className="mb-4 flex justify-end items-center sticky top-0 z-10 py-1">
         <button 
             onClick={() => setIsEditMode(!isEditMode)}
             className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-sm ${
