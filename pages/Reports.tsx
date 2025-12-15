@@ -405,31 +405,31 @@ export const Reports: React.FC = () => {
 
        {/* Analysis Result Card */}
        {analysisResult && (
-           <div className={`mt-8 p-6 rounded-2xl border animate-fade-in flex gap-5 items-start ${analysisResult.color}`}>
-                <div className={`p-3 rounded-full shrink-0 bg-white/60 shadow-sm`}>
-                    {analysisResult.status === 'mastery' && <Trophy size={24} className="text-cyan-600" />}
-                    {analysisResult.status === 'improving' && <TrendingUp size={24} className="text-green-600" />}
-                    {analysisResult.status === 'declining' && <TrendingDown size={24} className="text-red-600" />}
-                    {analysisResult.status === 'stagnant_low' && <AlertCircle size={24} className="text-orange-600" />}
-                    {analysisResult.status === 'stagnant_mid' && <Minus size={24} className="text-gray-600" />}
+           <div className={`mt-8 p-5 md:p-6 rounded-2xl border animate-fade-in flex gap-3 md:gap-5 items-start ${analysisResult.color}`}>
+                <div className={`p-2.5 md:p-3 rounded-full shrink-0 bg-white/60 shadow-sm`}>
+                    {analysisResult.status === 'mastery' && <Trophy className="w-5 h-5 md:w-6 md:h-6 text-cyan-600" />}
+                    {analysisResult.status === 'improving' && <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-green-600" />}
+                    {analysisResult.status === 'declining' && <TrendingDown className="w-5 h-5 md:w-6 md:h-6 text-red-600" />}
+                    {analysisResult.status === 'stagnant_low' && <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-orange-600" />}
+                    {analysisResult.status === 'stagnant_mid' && <Minus className="w-5 h-5 md:w-6 md:h-6 text-gray-600" />}
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-lg mb-2 flex flex-wrap items-center gap-2">
-                        <span className="whitespace-nowrap">{analysisResult.title}</span>
+                        <span className="break-keep leading-tight">{analysisResult.title}</span>
                         {selectedGoalId !== 'all' && (
-                            <span className="text-xs font-normal opacity-70 border border-current px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="text-xs font-normal opacity-70 border border-current px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
                                 {(() => {
                                     const GoalIcon = currentGoal ? getGoalIcon(currentGoal.icon) : null;
                                     return GoalIcon && <GoalIcon size={12} />;
                                 })()}
-                                {currentGoal?.title}
+                                <span className="truncate max-w-[100px]">{currentGoal?.title}</span>
                             </span>
                         )}
                     </h3>
-                    <p className="leading-relaxed text-sm md:text-base opacity-90 font-medium">
+                    <p className="leading-relaxed text-sm md:text-base opacity-90 font-medium break-keep text-justify md:text-left">
                         {analysisResult.message}
                     </p>
-                    <div className="mt-3 text-xs font-bold opacity-60 flex gap-4">
+                    <div className="mt-3 text-xs font-bold opacity-60 flex flex-wrap gap-x-4 gap-y-1">
                         <span>최근 평균: {Math.round(analysisResult.recentAvg)}%</span>
                         <span>추세 기울기: {analysisResult.slope.toFixed(2)}</span>
                     </div>
