@@ -181,6 +181,11 @@ export const StudentDetail: React.FC = () => {
   // Use formIcon for picker, or default
   const CurrentIcon = getGoalIcon(formIcon);
 
+  // Counts for Header
+  const inProgressCount = goals.filter(g => !g.status || g.status === 'in_progress').length;
+  const completedCount = goals.filter(g => g.status === 'completed').length;
+  const onHoldCount = goals.filter(g => g.status === 'on_hold').length;
+
   if (!student) return <div className="p-8 text-center text-gray-500">학생 정보를 불러오는 중...</div>;
 
   return (
@@ -236,7 +241,21 @@ export const StudentDetail: React.FC = () => {
                 <div className="space-y-4 animate-fade-in">
                     {/* Goal List Controls */}
                     {goals.length > 0 && (
-                        <div className="flex justify-end mb-2">
+                        <div className="flex justify-between items-end mb-2 px-1">
+                            <div className="text-xs font-bold text-gray-400 flex items-center gap-1.5 pb-0.5">
+                                <span className="flex items-center gap-1">
+                                    진행 <span className="text-cyan-600 text-sm font-black">{inProgressCount}</span>
+                                </span>
+                                <span className="text-gray-300">·</span>
+                                <span className="flex items-center gap-1">
+                                    완료 <span className="text-green-600 text-sm font-black">{completedCount}</span>
+                                </span>
+                                <span className="text-gray-300">·</span>
+                                <span className="flex items-center gap-1">
+                                    보류 <span className="text-gray-500 text-sm font-black">{onHoldCount}</span>
+                                </span>
+                            </div>
+
                             <button 
                                 onClick={() => setIsEditMode(!isEditMode)}
                                 className={`text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors ${isEditMode ? 'bg-cyan-100 text-cyan-600' : 'text-gray-400 hover:bg-gray-100'}`}

@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
-import { Check, ArrowUpDown, Trash2, Plus, Edit2, Camera } from 'lucide-react';
+import { Check, ArrowUpDown, Trash2, Plus, Edit2, Camera, Settings } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
@@ -184,18 +184,23 @@ export const StudentList: React.FC = () => {
 
   return (
     <div className={`pb-24 p-4 md:p-8 max-w-3xl mx-auto w-full min-h-screen transition-colors ${isEditMode ? 'bg-cyan-50/30' : ''}`}>
-      {/* Header - Title Removed, Edit Button aligned right */}
-      <header className="mb-4 flex justify-end items-center sticky top-0 z-10 py-1">
+      {/* Header - Total Count & Edit Button */}
+      <header className="mb-4 flex justify-between items-center sticky top-0 z-10 py-3 bg-slate-50/90 backdrop-blur-sm -mx-4 px-4 md:mx-0 md:px-0 md:bg-transparent">
+        <div className="flex items-end gap-1.5">
+            <span className="text-sm font-bold text-gray-400 mb-1">총</span>
+            <span className="text-2xl font-black text-gray-800 leading-none">{students.length}</span>
+            <span className="text-sm font-bold text-gray-400 mb-1">명</span>
+        </div>
+
         <button 
             onClick={() => setIsEditMode(!isEditMode)}
-            className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-sm ${
+            className={`p-2 rounded-full transition-colors ${
                 isEditMode 
-                ? 'bg-cyan-600 text-white hover:bg-cyan-700 shadow-cyan-200' 
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                ? 'bg-cyan-100 text-cyan-600' 
+                : 'text-gray-400 hover:bg-gray-100'
             }`}
         >
-            {isEditMode ? <Check size={16} /> : <ArrowUpDown size={16} />}
-            {isEditMode ? '완료' : '편집'}
+            {isEditMode ? <Check size={20} /> : <Settings size={20} />}
         </button>
       </header>
 

@@ -215,7 +215,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
             </div>
         )}
 
-        <div className="w-14 h-14 rounded-2xl bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200 relative">
+        <div className="w-14 h-14 rounded-full bg-gray-100 overflow-hidden flex-shrink-0 border border-gray-200 relative">
             <img 
               src={student.photo_uri} 
               alt={student.name}
