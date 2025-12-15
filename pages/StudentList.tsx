@@ -6,8 +6,7 @@ import { Check, ArrowUpDown, Trash2, Plus, Edit2, Camera } from 'lucide-react';
 import {
     DndContext,
     closestCenter,
-    MouseSensor,
-    TouchSensor,
+    PointerSensor, // Changed from Mouse/TouchSensor
     useSensor,
     useSensors,
     DragEndEvent,
@@ -44,14 +43,12 @@ export const StudentList: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Updated Sensors: Explicit Mouse and Touch to avoid Pointer conflicts
+  // Updated Sensors: Use PointerSensor for robust handling of both mouse and touch
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-        activationConstraint: { distance: 10 },
-    }),
-    useSensor(TouchSensor, {
-        // Immediate activation for handles, with small tolerance for shaky touches
-        activationConstraint: { delay: 0, tolerance: 5 },
+    useSensor(PointerSensor, {
+        activationConstraint: {
+            distance: 8, // Requires 8px movement to start drag, preventing accidental drags
+        },
     })
   );
 

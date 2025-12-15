@@ -183,9 +183,19 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
         {isEditMode && (
             <div 
                 ref={setActivatorNodeRef}
-                {...listeners}
                 {...attributes}
+                {...listeners}
                 className="text-cyan-400 p-2 -ml-3 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center bg-gray-50 rounded-lg hover:bg-cyan-50 mr-1"
+                // STOP PROPAGATION to prevent parent Swipe Logic from interfering
+                onPointerDown={(e) => {
+                    listeners?.onPointerDown?.(e);
+                    e.stopPropagation();
+                }}
+                onTouchStart={(e) => {
+                    // listeners usually don't have onTouchStart when using PointerSensor, but good for safety
+                    // We must stop propagation so parent handleTouchStart doesn't fire
+                    e.stopPropagation(); 
+                }}
                 onClick={(e) => e.stopPropagation()}
             >
                <GripVertical size={24} />

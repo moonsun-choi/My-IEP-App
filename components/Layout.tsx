@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, CloudOff, AlertTriangle, RefreshCw, LogOut, User as UserIcon } from 'lucide-react';
@@ -245,12 +246,26 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
               <div className="grid grid-cols-4 gap-2">
                    {syncStatus === 'cloud_newer' ? (
-                        <button 
-                            onClick={syncCloudToLocal}
-                            className="col-span-3 bg-orange-50 text-orange-600 border border-orange-100 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-orange-100 active:scale-95 transition-all"
-                        >
-                            <Download size={12} /> 데이터 복원하기
-                        </button>
+                        <div className="col-span-3 flex gap-1.5">
+                            <button 
+                                onClick={syncCloudToLocal}
+                                className="flex-1 bg-orange-50 text-orange-600 border border-orange-100 py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-orange-100 active:scale-95 transition-all leading-none"
+                            >
+                                <Download size={14} className="mb-0.5"/>
+                                <span>복원</span>
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    if(confirm("현재 기기의 데이터로 클라우드 백업을 덮어씁니다.\n(클라우드에 있는 이전 데이터는 삭제됩니다)\n\n계속하시겠습니까?")) {
+                                        syncLocalToCloud();
+                                    }
+                                }}
+                                className="flex-1 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-gray-50 active:scale-95 transition-all leading-none"
+                            >
+                                <Upload size={14} className="mb-0.5"/>
+                                <span>덮어쓰기</span>
+                            </button>
+                        </div>
                    ) : (
                        <button 
                             onClick={syncLocalToCloud}
@@ -346,7 +361,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="p-4 mt-auto">
             {renderProfileCard()}
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.1.4</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.5</p>
             </div>
         </div>
       </div>

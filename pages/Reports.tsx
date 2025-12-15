@@ -4,12 +4,16 @@ import { useStore } from '../store/useStore';
 import { AlertCircle, TrendingUp, TrendingDown, Minus, Trophy } from 'lucide-react';
 import { StudentGoalSelector } from '../components/StudentGoalSelector';
 import { getGoalIcon } from '../utils/goalIcons';
+import { useSearchParams } from 'react-router-dom';
 
 export const Reports: React.FC = () => {
   const { students, goals, logs, fetchStudents, fetchGoals, fetchStudentLogs } = useStore();
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedGoalId, setSelectedGoalId] = useState<string>('all'); // 'all' or specific goalId
   
+  // URL Params
+  const [searchParams] = useSearchParams();
+
   // Date Range State
   const [rangeType, setRangeType] = useState<'1w' | '1m' | '3m' | 'custom'>('1w');
   const [customStart, setCustomStart] = useState<string>(() => {
@@ -25,11 +29,23 @@ export const Reports: React.FC = () => {
     fetchStudents();
   }, [fetchStudents]);
 
+  // Handle URL param or default selection
   useEffect(() => {
-    if (students.length > 0 && !selectedStudentId) {
-      setSelectedStudentId(students[0].id);
+    if (students.length > 0) {
+      const paramId = searchParams.get('studentId');
+      
+      // If URL param exists and is valid, use it.
+      if (paramId && students.some(s => s.id === paramId)) {
+        if (selectedStudentId !== paramId) {
+            setSelectedStudentId(paramId);
+        }
+      } 
+      // Otherwise default to first student if nothing selected
+      else if (!selectedStudentId) {
+        setSelectedStudentId(students[0].id);
+      }
     }
-  }, [students, selectedStudentId]);
+  }, [students, searchParams]);
 
   useEffect(() => {
     if (selectedStudentId) {
@@ -398,8 +414,8 @@ export const Reports: React.FC = () => {
                     {analysisResult.status === 'stagnant_mid' && <Minus size={24} className="text-gray-600" />}
                 </div>
                 <div>
-                    <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                        {analysisResult.title}
+                    <h3 className="font-bold text-lg mb-2 flex flex-wrap items-center gap-2">
+                        <span className="whitespace-nowrap">{analysisResult.title}</span>
                         {selectedGoalId !== 'all' && (
                             <span className="text-xs font-normal opacity-70 border border-current px-2 py-0.5 rounded-full flex items-center gap-1">
                                 {(() => {

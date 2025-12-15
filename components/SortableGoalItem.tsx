@@ -201,9 +201,18 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
         {isEditMode && (
             <div 
                 ref={setActivatorNodeRef}
-                {...listeners}
                 {...attributes}
+                {...listeners}
                 className="text-cyan-400 p-2 -ml-2 cursor-grab active:cursor-grabbing touch-none flex items-center self-center justify-center bg-gray-50 rounded-lg hover:bg-cyan-50 mr-1"
+                // STOP PROPAGATION to prevent parent Swipe Logic from interfering
+                onPointerDown={(e) => {
+                    listeners?.onPointerDown?.(e);
+                    e.stopPropagation();
+                }}
+                onTouchStart={(e) => {
+                    // Stop swipe logic
+                    e.stopPropagation(); 
+                }}
                 onClick={(e) => e.stopPropagation()} // Prevent click propagating to container
             >
                 <GripVertical size={24} />

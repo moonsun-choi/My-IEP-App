@@ -7,8 +7,7 @@ import { Goal, GoalStatus } from '../types';
 import {
     DndContext,
     closestCenter,
-    MouseSensor,
-    TouchSensor,
+    PointerSensor,
     useSensor,
     useSensors,
     DragEndEvent,
@@ -56,10 +55,13 @@ export const StudentDetail: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, activeTab]);
 
-  // Updated Sensors: Explicit Mouse and Touch
+  // Updated Sensors: Use PointerSensor for consistency
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 10 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 5 } })
+    useSensor(PointerSensor, { 
+        activationConstraint: { 
+            distance: 8 
+        } 
+    })
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -294,7 +296,7 @@ export const StudentDetail: React.FC = () => {
                         )}
                         
                         <button 
-                            onClick={() => navigate('/reports')}
+                            onClick={() => navigate(`/reports?studentId=${id}`)}
                             className="w-full mt-6 py-3 text-sm font-bold text-cyan-600 bg-cyan-50 hover:bg-cyan-100 rounded-xl transition-colors"
                         >
                             상세 보고서 보기
