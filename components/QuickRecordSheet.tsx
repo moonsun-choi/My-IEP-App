@@ -15,6 +15,7 @@ interface QuickRecordSheetProps {
   initialPromptLevel?: PromptLevel;
   initialTimestamp?: number;
   initialMediaUri?: string;
+  initialMediaType?: string; // New prop for correct video detection
   initialNotes?: string;
   isEditing?: boolean;
 }
@@ -70,6 +71,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   initialPromptLevel = 'verbal', 
   initialTimestamp,
   initialMediaUri,
+  initialMediaType,
   initialNotes = '',
   isEditing = false,
 }) => {
@@ -84,6 +86,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   // Media State
   const [mediaPreview, setMediaPreview] = useState<string | undefined>(undefined);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [currentMediaType, setCurrentMediaType] = useState<string | undefined>(undefined);
   
   const [notes, setNotes] = useState<string>('');
   
@@ -99,6 +102,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     if (isOpen) {
       setPromptLevel(initialPromptLevel);
       setMediaPreview(initialMediaUri);
+      setCurrentMediaType(initialMediaType);
       setMediaFile(null); // Reset file on open
       setNotes(initialNotes);
       setAccuracy(isEditing ? initialValue : 50);
@@ -113,7 +117,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
         setEditDateTime('');
       }
     }
-  }, [isOpen, isEditing, initialValue, initialPromptLevel, initialTimestamp, initialMediaUri, initialNotes]);
+  }, [isOpen, isEditing, initialValue, initialPromptLevel, initialTimestamp, initialMediaUri, initialMediaType, initialNotes]);
 
   // Cleanup object URLs to avoid memory leaks
   useEffect(() => {
@@ -141,6 +145,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setMediaFile(file); // Store the file for upload
+      setCurrentMediaType(file.type); // Update type state
       
       // OPTIMIZED: Use createObjectURL instead of FileReader for large files (prevents mobile crash)
       const objectUrl = URL.createObjectURL(file);
@@ -153,6 +158,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   const clearMedia = () => {
     setMediaPreview(undefined);
     setMediaFile(null);
+    setCurrentMediaType(undefined);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -191,9 +197,13 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
 
   if (!isOpen) return null;
 
+  // Determine if it's a video based on File object OR passed mediaType OR URL string (fallback)
   const isVideo = mediaFile 
     ? mediaFile.type.startsWith('video/') 
-    : (mediaPreview?.startsWith('data:video') || mediaPreview?.includes('.mp4') || mediaPreview?.includes('video'));
+    : (currentMediaType?.startsWith('video/') || mediaPreview?.startsWith('data:video') || mediaPreview?.includes('.mp4') || mediaPreview?.includes('video'));
+
+  // Can we actually play it? (Must be a File/Blob or legacy data URI. Cloud thumbnails are just images)
+  const isPlayable = mediaFile || mediaPreview?.startsWith('blob:') || mediaPreview?.startsWith('data:video');
 
   return (
     <>
@@ -365,10 +375,15 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                     <div className="bg-gray-50 rounded-xl h-12 border border-gray-100 flex items-center justify-between px-3 relative overflow-hidden">
                         <div className="flex items-center gap-2 z-10 w-full min-w-0">
                             <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center relative">
-                                {isVideo ? (
+                                {isVideo && isPlayable ? (
                                     <video src={mediaPreview} className="w-full h-full object-cover" muted playsInline />
                                 ) : (
-                                    <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" />
+                                    <img 
+                                      src={mediaPreview} 
+                                      alt="preview" 
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                    />
                                 )}
                                 {isVideo && (
                                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">

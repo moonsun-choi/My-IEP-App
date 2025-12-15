@@ -63,7 +63,12 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
             showVideoPlayer ? (
                 <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline loop autoPlay />
             ) : (
-                <img src={log.media_uri} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                <img 
+                  src={log.media_uri} 
+                  alt="" 
+                  className="absolute inset-0 w-full h-full object-cover opacity-30" 
+                  referrerPolicy="no-referrer"
+                />
             )
           )}
           <div className="relative z-10 flex flex-col items-center">

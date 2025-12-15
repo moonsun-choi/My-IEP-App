@@ -317,6 +317,8 @@ export const DailyData: React.FC = () => {
         initialPromptLevel={editingLog ? editingLog.promptLevel : 'verbal'}
         initialTimestamp={editingLog?.timestamp}
         initialMediaUri={editingLog?.media_uri}
+        // Fix: Pass mediaType to handle cloud videos correctly
+        initialMediaType={editingLog?.mediaType}
         initialNotes={editingLog?.notes}
         isEditing={!!editingLog}
       />
