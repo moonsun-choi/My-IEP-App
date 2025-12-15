@@ -426,7 +426,7 @@ export const Reports: React.FC = () => {
                             </span>
                         )}
                     </h3>
-                    <p className="leading-relaxed text-sm md:text-base opacity-90 font-medium break-keep text-justify md:text-left">
+                    <p className="leading-relaxed text-sm md:text-base opacity-90 font-medium break-keep text-left">
                         {analysisResult.message}
                     </p>
                     <div className="mt-3 text-xs font-bold opacity-60 flex flex-wrap gap-x-4 gap-y-1">
