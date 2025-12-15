@@ -24,6 +24,7 @@ interface ExtendedAppState extends AppState {
     
     // UI Feedback
     loadingMessage: string | null;
+    uploadingLogIds: string[]; // Track which logs are currently uploading media
 
     // Sync Actions
     setOnlineStatus: (isOnline: boolean) => void;
@@ -68,6 +69,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         activeWidgets: ['tracker', 'students'], 
         isLoading: false,
         loadingMessage: null,
+        uploadingLogIds: [],
         
         // Sync State
         isOnline: navigator.onLine,
@@ -315,35 +317,64 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         },
 
         recordTrial: async (goalId: string, value: number, promptLevel: PromptLevel, mediaUri?: string | File, notes?: string) => {
-            let finalUri: string | undefined = undefined;
+            let tempUri: string | undefined = undefined;
+            let fileToUpload: File | null = null;
             
+            // 1. Optimistic Preparation: If File, create Blob URL for immediate display
             if (mediaUri instanceof File) {
-                set({ isLoading: true, loadingMessage: '미디어 업로드 중...' });
-                try {
-                    finalUri = await googleDriveService.uploadMedia(mediaUri);
-                    if (finalUri === "") {
-                        toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
-                        set({ isLoading: false, loadingMessage: null });
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Failed to upload media", e);
-                    toast.error("미디어 업로드 실패. 네트워크를 확인해주세요.");
-                    set({ isLoading: false, loadingMessage: null });
-                    return;
-                }
+                tempUri = URL.createObjectURL(mediaUri);
+                fileToUpload = mediaUri;
             } else {
-                finalUri = mediaUri;
+                tempUri = mediaUri;
             }
 
-            set({ isLoading: true, loadingMessage: '데이터 저장 중...' });
             try {
-                await db.addLog(goalId, value, promptLevel, finalUri, notes);
+                // 2. Add to DB immediately (Optimistic Save)
+                // Note: We intentionally save the blob URI locally so it shows up in the UI right away.
+                // It will be replaced with the cloud URI once upload finishes.
+                const newLog = await db.addLog(goalId, value, promptLevel, tempUri, notes);
+                
+                // 3. Update UI state immediately
                 await get().fetchLogs(goalId);
-                markDirty();
                 toast.success('기록이 저장되었습니다');
-            } finally {
-                set({ isLoading: false, loadingMessage: null });
+                markDirty(); // Trigger sync for text data
+
+                // 4. Background Upload Logic
+                if (fileToUpload) {
+                    const logId = newLog.id;
+                    
+                    // Add to uploading list to show UI feedback
+                    set(state => ({ uploadingLogIds: [...state.uploadingLogIds, logId] }));
+                    
+                    // Don't await this! Let it run in background.
+                    googleDriveService.uploadMedia(fileToUpload).then(async (finalUri) => {
+                        if (finalUri) {
+                            // Update the log with the real Cloud URI
+                            await db.updateLog(logId, value, promptLevel, newLog.timestamp, finalUri, notes);
+                            
+                            // Update local state to reflect the cloud URI (persistence fix)
+                            const currentLogs = get().logs;
+                            set({ 
+                                logs: currentLogs.map(l => l.id === logId ? { ...l, media_uri: finalUri } : l),
+                                uploadingLogIds: get().uploadingLogIds.filter(id => id !== logId)
+                            });
+                            
+                            // toast.success("미디어 동기화 완료");
+                        } else {
+                             // Handle Upload Failure (Keep local blob but warn)
+                             set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
+                             toast.error("미디어 업로드 실패 (로컬에만 저장됨)");
+                        }
+                    }).catch(err => {
+                         console.error("Background upload failed", err);
+                         set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
+                         toast.error("미디어 업로드 중 오류 발생");
+                    });
+                }
+
+            } catch (e) {
+                console.error("Save failed", e);
+                toast.error("저장 실패");
             }
         },
 
@@ -355,35 +386,47 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         },
 
         updateLog: async (logId: string, goalId: string, value: number, promptLevel: PromptLevel, timestamp: number, mediaUri?: string | File, notes?: string) => {
-            let finalUri: string | undefined = undefined;
+            let tempUri: string | undefined = undefined;
+            let fileToUpload: File | null = null;
 
             if (mediaUri instanceof File) {
-                set({ isLoading: true, loadingMessage: '미디어 업로드 중...' });
-                try {
-                    finalUri = await googleDriveService.uploadMedia(mediaUri);
-                    if (finalUri === "") {
-                        toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
-                        set({ isLoading: false, loadingMessage: null });
-                        return;
-                    }
-                } catch (e) {
-                    console.error("Failed to upload media", e);
-                    toast.error("미디어 업로드 실패");
-                    set({ isLoading: false, loadingMessage: null });
-                    return;
-                }
+                tempUri = URL.createObjectURL(mediaUri);
+                fileToUpload = mediaUri;
             } else {
-                finalUri = mediaUri;
+                tempUri = mediaUri;
             }
 
-            set({ isLoading: true, loadingMessage: '데이터 수정 중...' });
             try {
-                await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes);
+                // Optimistic Update
+                await db.updateLog(logId, value, promptLevel, timestamp, tempUri, notes);
                 await get().fetchLogs(goalId);
-                markDirty();
                 toast.success('기록이 수정되었습니다');
-            } finally {
-                set({ isLoading: false, loadingMessage: null });
+                markDirty();
+
+                // Background Upload
+                if (fileToUpload) {
+                    set(state => ({ uploadingLogIds: [...state.uploadingLogIds, logId] }));
+
+                    googleDriveService.uploadMedia(fileToUpload).then(async (finalUri) => {
+                        if (finalUri) {
+                            await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes);
+                            const currentLogs = get().logs;
+                            set({ 
+                                logs: currentLogs.map(l => l.id === logId ? { ...l, media_uri: finalUri } : l),
+                                uploadingLogIds: get().uploadingLogIds.filter(id => id !== logId)
+                            });
+                        } else {
+                             set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
+                             toast.error("미디어 업로드 실패");
+                        }
+                    }).catch(err => {
+                         console.error("Background update upload failed", err);
+                         set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
+                    });
+                }
+            } catch (e) {
+                console.error("Update failed", e);
+                toast.error("수정 실패");
             }
         },
 

@@ -66,6 +66,19 @@
         background-color: #cbd5e1;
         border-radius: 20px;
       }
+
+      /* Liquid Wave Animation for Uploading State */
+      @keyframes liquid-wave {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      
+      .animate-liquid {
+        background: linear-gradient(-45deg, #ecfeff, #cffafe, #ecfeff, #fff);
+        background-size: 400% 400%;
+        animation: liquid-wave 3s ease infinite;
+      }
     </style>
   <script type="importmap">
 {

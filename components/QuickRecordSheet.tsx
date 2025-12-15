@@ -73,8 +73,9 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   initialNotes = '',
   isEditing = false,
 }) => {
-  const { isLoading, loadingMessage } = useStore();
-
+  // Use local loading state if needed, but for optimistic updates we generally don't block
+  // Removing global isLoading check for closing behavior
+  
   // Data States
   const [accuracy, setAccuracy] = useState<number>(50);
   const [promptLevel, setPromptLevel] = useState<PromptLevel>('verbal');
@@ -124,8 +125,6 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   }, [mediaPreview]);
 
   const handleSave = () => {
-    if (isLoading) return; // Prevent double click
-    
     let timestamp: number | undefined;
     if (isEditing && editDateTime) {
         timestamp = new Date(editDateTime).getTime();
@@ -200,7 +199,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     <>
       <div 
         className="fixed inset-0 bg-black/60 z-40 transition-opacity animate-fade-in backdrop-blur-sm"
-        onClick={!isLoading ? onClose : undefined} // Prevent closing while uploading
+        onClick={onClose}
         style={{ opacity: Math.max(0, 1 - dragOffset / 500) }}
       />
       
@@ -232,12 +231,12 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                 </h3>
                 <div className="flex gap-2">
                     {isEditing && onDelete && (
-                        <button onClick={onDelete} disabled={isLoading} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100 transition-colors disabled:opacity-50">
+                        <button onClick={onDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100 transition-colors disabled:opacity-50">
                             <Trash2 size={20} />
                         </button>
                     )}
                     {/* Close Button (More visible on Desktop) */}
-                    <button onClick={onClose} disabled={isLoading} className="p-2 text-gray-400 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors hidden md:block disabled:opacity-50">
+                    <button onClick={onClose} className="p-2 text-gray-400 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors hidden md:block disabled:opacity-50">
                         <X size={20} />
                     </button>
                 </div>
@@ -399,17 +398,9 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
             {/* Save Button */}
             <button
             onClick={handleSave}
-            disabled={isLoading}
-            className="w-full py-4 rounded-xl font-bold text-white text-lg bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-xl font-bold text-white text-lg bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
             >
-            {isLoading ? (
-                <>
-                    <Loader2 size={20} className="animate-spin" />
-                    <span>{loadingMessage || '저장 중...'}</span>
-                </>
-            ) : (
                 <span>{isEditing ? '수정 완료' : '기록 저장'}</span>
-            )}
             </button>
         </div>
       </div>

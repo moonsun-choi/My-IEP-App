@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { ObservationLog, PromptLevel } from '../types';
-import { Edit2, Paperclip, MessageSquare, Video } from 'lucide-react';
+import { Edit2, Paperclip, MessageSquare, Video, Loader2, Cloud } from 'lucide-react';
 import { getGoalIcon } from '../utils/goalIcons';
 
 interface LogCardProps {
@@ -9,9 +9,10 @@ interface LogCardProps {
   goalTitle?: string; // Optional: Show goal title context
   goalIcon?: string;  // Optional: Show goal icon
   onClick: (log: ObservationLog) => void;
+  isUploading?: boolean; // New Prop for upload status
 }
 
-export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick }) => {
+export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick, isUploading }) => {
   const value = log.value;
   const GoalIconComponent = getGoalIcon(goalIcon);
   const isVideo = log.media_uri?.startsWith('data:video');
@@ -43,9 +44,9 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
   return (
     <button 
       onClick={() => onClick(log)}
-      className="w-full bg-white p-3 md:p-4 rounded-2xl border border-gray-100 flex items-center justify-between active:scale-[0.99] hover:shadow-md transition-all group"
+      className={`w-full relative overflow-hidden bg-white p-3 md:p-4 rounded-2xl border flex items-center justify-between active:scale-[0.99] hover:shadow-md transition-all group ${isUploading ? 'border-cyan-200 animate-liquid' : 'border-gray-100'}`}
     >
-      <div className="flex items-center gap-3 md:gap-4 w-full">
+      <div className="flex items-center gap-3 md:gap-4 w-full relative z-10">
         {/* Value Box - Always Percentage */}
         <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold relative overflow-hidden shrink-0 transition-transform group-hover:scale-105 ${getValueColorClass(value)}`}>
           {log.media_uri && (
@@ -74,10 +75,16 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
           )}
 
           <div className="flex flex-wrap items-center gap-2 mb-1">
+            {isUploading && (
+                <span className="bg-white/80 text-cyan-600 border border-cyan-100 rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 font-bold animate-pulse">
+                    <Cloud size={10} />
+                    업로드 중...
+                </span>
+            )}
             <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${getPromptColor(log.promptLevel)}`}>
               {getPromptLabel(log.promptLevel)}
             </span>
-            {log.media_uri && (
+            {log.media_uri && !isUploading && (
               <span className="bg-cyan-50 text-cyan-500 border border-cyan-100 rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 font-bold">
                 {isVideo ? <Video size={10} /> : <Paperclip size={10} />}
                 {isVideo ? '영상' : '자료'}
@@ -103,7 +110,7 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
           </div>
         </div>
       </div>
-      <Edit2 size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors ml-2" />
+      <Edit2 size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors ml-2 relative z-10" />
     </button>
   );
 };

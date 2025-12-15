@@ -9,7 +9,7 @@ import { StudentGoalSelector } from '../components/StudentGoalSelector';
 import { useSearchParams } from 'react-router-dom';
 
 export const DailyData: React.FC = () => {
-  const { students, goals, logs, fetchStudents, fetchGoals, fetchLogs, recordTrial, deleteLog, updateLog } = useStore();
+  const { students, goals, logs, uploadingLogIds, fetchStudents, fetchGoals, fetchLogs, recordTrial, deleteLog, updateLog } = useStore();
   
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [selectedGoalId, setSelectedGoalId] = useState<string>('');
@@ -212,7 +212,8 @@ export const DailyData: React.FC = () => {
             )}
             {recentLogs.map((log) => {
                 const info = getLogGoalInfo(log);
-                return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} />;
+                const isUploading = uploadingLogIds.includes(log.id);
+                return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} isUploading={isUploading} />;
             })}
             
             {sortedLogs.length > 5 && (
@@ -295,7 +296,8 @@ export const DailyData: React.FC = () => {
                     ) : (
                         filteredHistoryLogs.map((log) => {
                              const info = getLogGoalInfo(log);
-                             return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} />
+                             const isUploading = uploadingLogIds.includes(log.id);
+                             return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} isUploading={isUploading} />
                         })
                     )}
                   </div>
