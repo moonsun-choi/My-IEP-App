@@ -15,7 +15,17 @@ interface LogCardProps {
 export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick, isUploading }) => {
   const value = log.value;
   const GoalIconComponent = getGoalIcon(goalIcon);
-  const isVideo = log.media_uri?.startsWith('data:video');
+  
+  // Logic to determine if we should render a <video> tag
+  // 1. It is a legacy base64 video string (data:video)
+  // 2. OR it is a blob URL (optimistic update) AND mediaType indicates video
+  // Note: For Google Drive thumbnails (http...), we use <img> even if it's a video file, because it's a thumbnail image.
+  const isVideoBlob = log.media_uri?.startsWith('blob:') && log.mediaType?.startsWith('video/');
+  const isLegacyVideo = log.media_uri?.startsWith('data:video');
+  const showVideoPlayer = isVideoBlob || isLegacyVideo;
+  
+  // For badge display, we just check if the type is video
+  const isVideoType = log.mediaType?.startsWith('video/') || isLegacyVideo || log.media_uri?.includes('video');
 
   const getPromptLabel = (level: PromptLevel) => {
     const map: Record<string, string> = {
@@ -50,8 +60,8 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
         {/* Value Box - Always Percentage */}
         <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold relative overflow-hidden shrink-0 transition-transform group-hover:scale-105 ${getValueColorClass(value)}`}>
           {log.media_uri && (
-            isVideo ? (
-                <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline />
+            showVideoPlayer ? (
+                <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline loop autoPlay />
             ) : (
                 <img src={log.media_uri} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" />
             )
@@ -86,8 +96,8 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
             </span>
             {log.media_uri && !isUploading && (
               <span className="bg-cyan-50 text-cyan-500 border border-cyan-100 rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 font-bold">
-                {isVideo ? <Video size={10} /> : <Paperclip size={10} />}
-                {isVideo ? '영상' : '자료'}
+                {isVideoType ? <Video size={10} /> : <Paperclip size={10} />}
+                {isVideoType ? '영상' : '자료'}
               </span>
             )}
             {log.notes && (

@@ -131,7 +131,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
   };
 
   return (
-    <div className="relative group touch-none mb-1">
+    <div className="relative group touch-pan-y mb-1">
       {/* Background Actions (Swipe Reveal) */}
       {isEditMode && (
          <div className="absolute inset-0 rounded-2xl flex overflow-hidden shadow-inner bg-gray-100">
@@ -169,7 +169,7 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
         onMouseLeave={handleMouseUp}
         
         className={`
-          relative p-4 rounded-2xl flex items-center gap-4 transition-all touch-none select-none overflow-hidden
+          relative p-4 rounded-2xl flex items-center gap-4 transition-all touch-pan-y select-none overflow-hidden
           ${isEditMode 
             ? 'bg-white border-2 border-cyan-500 shadow-md cursor-pointer' // Edit Mode: Strong Border + Shadow + Pointer
             : 'bg-white border border-gray-100 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]' // Normal Mode

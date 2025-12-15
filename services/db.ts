@@ -317,7 +317,8 @@ class DatabaseService {
       value: number, 
       promptLevel: PromptLevel, 
       media_uri?: string, 
-      notes?: string
+      notes?: string,
+      mediaType?: string
     ): Promise<ObservationLog> {
     
     const newLog: ObservationLog = {
@@ -328,6 +329,7 @@ class DatabaseService {
       promptLevel,
       timestamp: Date.now(),
       media_uri,
+      mediaType,
       notes
     };
     
@@ -347,7 +349,8 @@ class DatabaseService {
       promptLevel: PromptLevel, 
       timestamp: number, 
       media_uri?: string, 
-      notes?: string
+      notes?: string,
+      mediaType?: string
     ): Promise<void> {
     
     const db = await this.dbPromise;
@@ -361,7 +364,8 @@ class DatabaseService {
         promptLevel,
         timestamp,
         media_uri,
-        notes
+        notes,
+        mediaType: mediaType !== undefined ? mediaType : oldLog.mediaType
     };
     await db.put('logs', updatedLog);
   }

@@ -32,6 +32,7 @@ export interface ObservationLog {
   timestamp: number;
   notes?: string;
   media_uri?: string;
+  mediaType?: string; // 'video/mp4', 'image/jpeg', etc.
 }
 
 export interface AssessmentItem {

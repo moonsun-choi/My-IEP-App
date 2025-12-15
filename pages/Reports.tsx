@@ -176,15 +176,14 @@ export const Reports: React.FC = () => {
   }, [validDataPoints]);
 
   return (
-    <div className="pb-24 max-w-5xl mx-auto w-full">
+    <div className="pb-24 max-w-5xl mx-auto w-full px-4 md:px-0">
        
        {/* --- 1. Dashboard Header (Cyan Theme) --- */}
        <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
            
            {/* Step 1: Student Selector */}
-           {/* Adjusted padding (py-3) to prevent clipping of scaled items */}
            <div className="w-full overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-              <div className="flex items-start gap-4 min-w-min px-1">
+              <div className="flex items-start gap-4 w-max px-1">
                   {students.map((s) => {
                       const isSelected = selectedStudentId === s.id;
                       return (

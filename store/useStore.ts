@@ -319,11 +319,13 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         recordTrial: async (goalId: string, value: number, promptLevel: PromptLevel, mediaUri?: string | File, notes?: string) => {
             let tempUri: string | undefined = undefined;
             let fileToUpload: File | null = null;
+            let mediaType: string | undefined = undefined;
             
             // 1. Optimistic Preparation: If File, create Blob URL for immediate display
             if (mediaUri instanceof File) {
                 tempUri = URL.createObjectURL(mediaUri);
                 fileToUpload = mediaUri;
+                mediaType = mediaUri.type;
             } else {
                 tempUri = mediaUri;
             }
@@ -332,7 +334,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 // 2. Add to DB immediately (Optimistic Save)
                 // Note: We intentionally save the blob URI locally so it shows up in the UI right away.
                 // It will be replaced with the cloud URI once upload finishes.
-                const newLog = await db.addLog(goalId, value, promptLevel, tempUri, notes);
+                const newLog = await db.addLog(goalId, value, promptLevel, tempUri, notes, mediaType);
                 
                 // 3. Update UI state immediately
                 await get().fetchLogs(goalId);
@@ -350,7 +352,11 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     googleDriveService.uploadMedia(fileToUpload).then(async (finalUri) => {
                         if (finalUri) {
                             // Update the log with the real Cloud URI
-                            await db.updateLog(logId, value, promptLevel, newLog.timestamp, finalUri, notes);
+                            // If finalUri is likely an image (thumbnail), we can update mediaType or leave it.
+                            // Google Drive returns thumbnail links, so usually it renders as image.
+                            // We update the URI. We keep the original mediaType or could update it to 'image/jpeg' if we want to force img tag.
+                            // But for now, let's keep original type so we know it was a video, but allow LogCard to handle it.
+                            await db.updateLog(logId, value, promptLevel, newLog.timestamp, finalUri, notes, mediaType);
                             
                             // Update local state to reflect the cloud URI (persistence fix)
                             const currentLogs = get().logs;
@@ -388,17 +394,20 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         updateLog: async (logId: string, goalId: string, value: number, promptLevel: PromptLevel, timestamp: number, mediaUri?: string | File, notes?: string) => {
             let tempUri: string | undefined = undefined;
             let fileToUpload: File | null = null;
+            let mediaType: string | undefined = undefined;
 
             if (mediaUri instanceof File) {
                 tempUri = URL.createObjectURL(mediaUri);
                 fileToUpload = mediaUri;
+                mediaType = mediaUri.type;
             } else {
                 tempUri = mediaUri;
+                // mediaType remains undefined, db will preserve old value
             }
 
             try {
                 // Optimistic Update
-                await db.updateLog(logId, value, promptLevel, timestamp, tempUri, notes);
+                await db.updateLog(logId, value, promptLevel, timestamp, tempUri, notes, mediaType);
                 await get().fetchLogs(goalId);
                 toast.success('기록이 수정되었습니다');
                 markDirty();
@@ -409,7 +418,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
 
                     googleDriveService.uploadMedia(fileToUpload).then(async (finalUri) => {
                         if (finalUri) {
-                            await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes);
+                            await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes, mediaType);
                             const currentLogs = get().logs;
                             set({ 
                                 logs: currentLogs.map(l => l.id === logId ? { ...l, media_uri: finalUri } : l),
