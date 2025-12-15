@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, CheckSquare, BarChart2, LayoutDashboard, Users, Cloud, Upload, Download, Loader2, CloudOff, AlertTriangle, RefreshCw, LogOut, User as UserIcon } from 'lucide-react';
@@ -392,7 +391,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-0 scroll-smooth bg-slate-50/50">
+        {/* Added overflow-x-hidden to prevent page-wide horizontal scroll */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-0 scroll-smooth bg-slate-50/50">
           {children}
         </main>
       </div>

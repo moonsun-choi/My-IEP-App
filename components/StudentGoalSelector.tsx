@@ -37,8 +37,8 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
   return (
     <div className="flex flex-col gap-3">
       {/* 1. Horizontal Scroll Student Profile Bar (Instagram Story Style) */}
-      {/* Updated: Increased vertical padding (py-3) to secure more height */}
-      <div className="w-full overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+      {/* Removed w-full to prevent horizontal overflow caused by negative margins on full width elements */}
+      <div className="overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
           <div className="flex items-start gap-4 w-max px-1">
               {students.map((s) => {
                   const isSelected = selectedStudentId === s.id;

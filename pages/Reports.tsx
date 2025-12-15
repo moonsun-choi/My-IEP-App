@@ -182,7 +182,8 @@ export const Reports: React.FC = () => {
        <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
            
            {/* Step 1: Student Selector */}
-           <div className="w-full overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+           {/* Updated: Fixed margins to -mx-6 to match px-6 padding of header for true full bleed */}
+           <div className="overflow-x-auto py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide">
               <div className="flex items-start gap-4 w-max px-1">
                   {students.map((s) => {
                       const isSelected = selectedStudentId === s.id;
@@ -334,7 +335,7 @@ export const Reports: React.FC = () => {
                         </div>
 
                         {/* Chart Line */}
-                        <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none">
+                        <svg className="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 200">
                             <defs>
                                 <linearGradient id="gradientReport" x1="0" x2="0" y1="0" y2="1">
                                     <stop offset="0%" stopColor="#0891b2" stopOpacity="0.1" />
@@ -342,7 +343,7 @@ export const Reports: React.FC = () => {
                                 </linearGradient>
                             </defs>
                             <path 
-                                d={`${getPoints()} L 100,100 L 0,100 Z`}
+                                d={`${getPoints()} L 100,200 L 0,200 Z`}
                                 fill="url(#gradientReport)"
                             />
                             <polyline
@@ -352,6 +353,7 @@ export const Reports: React.FC = () => {
                                 points={getPoints()}
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
+                                vectorEffect="non-scaling-stroke"
                             />
                         </svg>
 

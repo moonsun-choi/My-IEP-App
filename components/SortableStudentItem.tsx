@@ -39,7 +39,8 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
   const navigate = useNavigate();
 
   // --- Swipe & Long Press Logic ---
-  const [touchStart, setTouchStart] = useState<number | null>(null);
+  // Store both X and Y coordinates to distinguish scroll from swipe
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
   const [touchOffset, setTouchOffset] = useState(0);
   const longPressTimer = useRef<any>(null);
   const minSwipeDistance = 80;
@@ -53,9 +54,12 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
           }, 500); // 500ms long press
       }
 
-      // Swipe Start (only in edit mode)
+      // Swipe Start (Record initial position)
       if (isEditMode) {
-        setTouchStart(e.targetTouches[0].clientX);
+        setTouchStart({
+            x: e.targetTouches[0].clientX,
+            y: e.targetTouches[0].clientY
+        });
       }
   };
 
@@ -67,13 +71,23 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
       }
 
       if (!isEditMode || touchStart === null) return;
-      const currentX = e.targetTouches[0].clientX;
-      const diff = currentX - touchStart;
       
+      const currentX = e.targetTouches[0].clientX;
+      const currentY = e.targetTouches[0].clientY;
+      const diffX = currentX - touchStart.x;
+      const diffY = currentY - touchStart.y;
+      
+      // CRITICAL: Determine if this is a vertical scroll or horizontal swipe
+      // If vertical movement is greater than horizontal, assume scroll and do nothing (let browser handle it)
+      if (Math.abs(diffY) > Math.abs(diffX)) return;
+
+      // If Horizontal Swipe, prevent default to stop browser navigation/scroll and handle custom swipe
+      if (e.cancelable) e.preventDefault();
+
       // Limit swipe range
-      if (diff > 120) setTouchOffset(120);
-      else if (diff < -120) setTouchOffset(-120);
-      else setTouchOffset(diff);
+      if (diffX > 120) setTouchOffset(120);
+      else if (diffX < -120) setTouchOffset(-120);
+      else setTouchOffset(diffX);
   };
 
   const handleTouchEnd = () => {
@@ -120,9 +134,6 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
   const handleCardClick = () => {
       if (isDragging) return;
       
-      // Logic Change: 
-      // Edit Mode -> Open Edit Sheet
-      // Normal Mode -> Navigate to Detail
       if (!isEditMode) {
           navigate(`/student/${student.id}`);
       } else {
@@ -171,8 +182,8 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
         className={`
           relative p-4 rounded-2xl flex items-center gap-4 transition-all touch-pan-y select-none overflow-hidden
           ${isEditMode 
-            ? 'bg-white border-2 border-cyan-500 shadow-md cursor-pointer' // Edit Mode: Strong Border + Shadow + Pointer
-            : 'bg-white border border-gray-100 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]' // Normal Mode
+            ? 'bg-white border-2 border-cyan-500 shadow-md cursor-pointer' 
+            : 'bg-white border border-gray-100 shadow-sm hover:shadow-md cursor-pointer active:scale-[0.99]' 
           }
           ${isDragging ? 'shadow-2xl scale-105 z-50 ring-4 ring-cyan-200' : ''}
         `}
@@ -192,8 +203,6 @@ export const SortableStudentItem: React.FC<SortableStudentItemProps> = ({
                     e.stopPropagation();
                 }}
                 onTouchStart={(e) => {
-                    // listeners usually don't have onTouchStart when using PointerSensor, but good for safety
-                    // We must stop propagation so parent handleTouchStart doesn't fire
                     e.stopPropagation(); 
                 }}
                 onClick={(e) => e.stopPropagation()}
