@@ -34,11 +34,10 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
   };
 
   return (
-    // [수정됨] flex flex-col 제거하고 space-y-3 사용 (Block 레이아웃 유지)
     <div className="space-y-3">
       {/* 1. Horizontal Scroll Student Profile Bar */}
-      {/* w-full 제거됨, -mx-4로 좌우 여백 확장 */}
-      <div className="flex overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
+      {/* 수정됨: w-full 및 max-w-[100vw] 추가하여 화면 폭 초과 방지 */}
+      <div className="flex overflow-x-auto w-full max-w-[100vw] py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
           {students.map((s) => {
               const isSelected = selectedStudentId === s.id;
               

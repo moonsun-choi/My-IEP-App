@@ -181,8 +181,8 @@ export const Reports: React.FC = () => {
        <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
            
            {/* Step 1: Student Selector */}
-           {/* [수정됨] w-full 제거하여 음수 마진 적용 시 좌우로 확장되도록 수정 */}
-           <div className="flex overflow-x-auto py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
+           {/* 수정됨: w-full 및 max-w-[100vw] 추가 */}
+           <div className="flex overflow-x-auto w-full max-w-[100vw] py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
                 {students.map((s) => {
                     const isSelected = selectedStudentId === s.id;
                     return (
