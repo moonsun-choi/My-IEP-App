@@ -135,7 +135,7 @@ export const Reports: React.FC = () => {
     const recentAvg = recentPoints.reduce((acc, curr) => acc + (curr.avgAccuracy || 0), 0) / recentPoints.length;
 
     const n = validDataPoints.length;
-    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    let sumX = 0, sumY = 0, sumXY = 0, sumXYAvg = 0, sumXX = 0;
     validDataPoints.forEach((d, i) => {
         const val = d.avgAccuracy || 0;
         sumX += i;
@@ -176,13 +176,12 @@ export const Reports: React.FC = () => {
   }, [validDataPoints]);
 
   return (
-    <div className="pb-24 max-w-5xl mx-auto w-full px-4 md:px-0">
+    <div className="pb-24 max-w-6xl mx-auto w-full px-4 md:px-8 md:pt-8">
        
        {/* --- 1. Dashboard Header (Cyan Theme) --- */}
-       <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
+       <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-3xl px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100 md:border">
            
            {/* Step 1: Student Selector */}
-           {/* Fixed: Use calc(100% + 3rem) to fill negative margins (-mx-6) on mobile. pl-9 for left spacing, pr-2 for right. */}
            <div className="flex overflow-x-auto w-[calc(100%+3rem)] max-w-[100vw] py-3 -mx-6 pl-9 pr-2 md:mx-0 md:px-0 md:w-full scrollbar-hide gap-4 snap-x">
                 {students.map((s) => {
                     const isSelected = selectedStudentId === s.id;
@@ -269,7 +268,6 @@ export const Reports: React.FC = () => {
                </div>
 
                {/* Custom Date Inputs (Conditional) */}
-               {/* Fixed: Reduced padding/gaps and added min-w-0 to children to prevent overflow on mobile */}
                {rangeType === 'custom' && (
                     <div className="border-t border-slate-100 mt-2 pt-3 px-1 pb-2 animate-fade-in flex gap-2">
                         <div className="flex-1 min-w-0">
@@ -302,7 +300,7 @@ export const Reports: React.FC = () => {
        </div>
 
        {/* --- 2. Chart Section --- */}
-       <div className="px-4 md:px-0">
+       <div className="">
            {/* Chart Container */}
            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 min-h-[300px] relative mb-6">
                 <div className="flex justify-between items-end mb-8">
@@ -413,7 +411,6 @@ export const Reports: React.FC = () => {
                         {analysisResult.status === 'stagnant_mid' && <Minus size={20} className="text-gray-600" />}
                     </div>
                     <div>
-                        {/* Fixed: Added break-keep to prevent word splitting, and whitespace-pre-line to respect newlines */}
                         <h4 className="font-bold text-lg mb-1 break-keep">{analysisResult.title}</h4>
                         <p className="text-sm opacity-90 leading-relaxed whitespace-pre-line break-keep">{analysisResult.message}</p>
                     </div>

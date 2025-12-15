@@ -379,9 +379,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <h1 className="text-lg md:text-xl font-extrabold text-gray-800 tracking-tight leading-tight truncate">
                         {getPageTitle()}
                     </h1>
-                    <span className="text-[10px] md:text-xs font-medium text-gray-400 truncate">
-                        {isOnline ? 'Online Mode' : 'Offline Mode (Local Storage)'}
-                    </span>
                 </div>
             </div>
             <div className="flex items-center gap-2">
