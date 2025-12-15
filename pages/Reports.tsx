@@ -269,20 +269,31 @@ export const Reports: React.FC = () => {
                </div>
 
                {/* Custom Date Inputs (Conditional) */}
+               {/* Fixed: Reduced padding/gaps and added min-w-0 to children to prevent overflow on mobile */}
                {rangeType === 'custom' && (
-                    <div className="border-t border-slate-100 mt-2 pt-3 px-3 pb-2 animate-fade-in flex gap-3">
-                        <div className="flex-1">
-                            <label className="text-[10px] text-slate-400 font-bold mb-1 block">시작일</label>
-                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                                <Calendar size={14} className="text-slate-400" />
-                                <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 w-full outline-none" />
+                    <div className="border-t border-slate-100 mt-2 pt-3 px-1 pb-2 animate-fade-in flex gap-2">
+                        <div className="flex-1 min-w-0">
+                            <label className="text-[10px] text-slate-400 font-bold mb-1 block ml-1">시작일</label>
+                            <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-2 rounded-lg border border-slate-200">
+                                <Calendar size={14} className="text-slate-400 shrink-0" />
+                                <input 
+                                    type="date" 
+                                    value={customStart} 
+                                    onChange={e => setCustomStart(e.target.value)} 
+                                    className="bg-transparent text-xs font-bold text-slate-700 w-full outline-none p-0 min-w-0" 
+                                />
                             </div>
                         </div>
-                        <div className="flex-1">
-                            <label className="text-[10px] text-slate-400 font-bold mb-1 block">종료일</label>
-                            <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-                                <Calendar size={14} className="text-slate-400" />
-                                <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 w-full outline-none" />
+                        <div className="flex-1 min-w-0">
+                            <label className="text-[10px] text-slate-400 font-bold mb-1 block ml-1">종료일</label>
+                            <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-2 rounded-lg border border-slate-200">
+                                <Calendar size={14} className="text-slate-400 shrink-0" />
+                                <input 
+                                    type="date" 
+                                    value={customEnd} 
+                                    onChange={e => setCustomEnd(e.target.value)} 
+                                    className="bg-transparent text-xs font-bold text-slate-700 w-full outline-none p-0 min-w-0" 
+                                />
                             </div>
                         </div>
                     </div>
