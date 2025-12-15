@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { ArrowLeft, Plus, Trash2, Check, X, CheckCircle2, PauseCircle, PlayCircle, ArrowUpDown, BarChart3, ListChecks, Wand2, Edit2, Target } from 'lucide-react';
@@ -32,6 +32,12 @@ export const StudentDetail: React.FC = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
   const [targetGoal, setTargetGoal] = useState<Goal | null>(null);
+
+  // Swipe Logic
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   // Form State
   const [formTitle, setFormTitle] = useState('');
@@ -83,6 +89,7 @@ export const StudentDetail: React.FC = () => {
       setFormStatus('in_progress');
       setFormIcon('target');
       setIsSheetOpen(true);
+      setDragOffset(0);
   };
 
   const openEditSheet = (goal: Goal) => {
@@ -93,11 +100,13 @@ export const StudentDetail: React.FC = () => {
       setFormStatus(goal.status || 'in_progress');
       setFormIcon(goal.icon || 'target');
       setIsSheetOpen(true);
+      setDragOffset(0);
   };
 
   const closeSheet = () => {
       setIsSheetOpen(false);
       setTargetGoal(null);
+      setDragOffset(0);
   };
 
   const handleFormSubmit = async () => {
@@ -127,6 +136,36 @@ export const StudentDetail: React.FC = () => {
       setTargetGoal(goal);
       setFormIcon(goal.icon || 'target');
       setIsIconPickerOpen(true);
+  };
+
+  // --- Touch Handlers for Swipe to Close ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+      if (sheetRef.current && sheetRef.current.scrollTop <= 0) {
+          dragStartY.current = e.touches[0].clientY;
+          setIsDragging(true);
+      }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+      if (dragStartY.current === null) return;
+      
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - dragStartY.current;
+
+      if (diff > 0) {
+          if (e.cancelable) e.preventDefault();
+          setDragOffset(diff);
+      }
+  };
+
+  const handleTouchEnd = () => {
+      setIsDragging(false);
+      dragStartY.current = null;
+      if (dragOffset > 120) {
+          closeSheet();
+      } else {
+          setDragOffset(0);
+      }
   };
 
   // Summary Logic
@@ -309,8 +348,20 @@ export const StudentDetail: React.FC = () => {
 
       {/* Unified Add/Edit Goal Sheet */}
       {isSheetOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm animate-fade-in" onClick={closeSheet}>
-            <div className="bg-white w-full max-w-sm sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm animate-fade-in" 
+            onClick={closeSheet}
+            style={{ opacity: Math.max(0, 1 - dragOffset / 500) }}
+        >
+            <div 
+                ref={sheetRef}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                style={{ transform: `translateY(${dragOffset}px)`, transition: isDragging ? 'none' : 'transform 0.2s ease-out' }}
+                className="bg-white w-full max-w-sm sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-slide-up max-h-[90vh] overflow-y-auto" 
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 opacity-60" />
                 
                 {/* Sheet Title */}

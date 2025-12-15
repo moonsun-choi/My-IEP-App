@@ -86,6 +86,12 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   
   const [notes, setNotes] = useState<string>('');
   
+  // Swipe to Close Logic
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -95,6 +101,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
       setMediaFile(null); // Reset file on open
       setNotes(initialNotes);
       setAccuracy(isEditing ? initialValue : 50);
+      setDragOffset(0); // Reset drag
 
       if (isEditing && initialTimestamp) {
           const date = new Date(initialTimestamp);
@@ -150,6 +157,39 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // --- Touch Handlers for Swipe to Close ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+      if (sheetRef.current && sheetRef.current.scrollTop === 0) {
+          dragStartY.current = e.touches[0].clientY;
+          setIsDragging(true);
+      }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+      if (dragStartY.current === null) return;
+      
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - dragStartY.current;
+
+      // Only allow dragging down
+      if (diff > 0) {
+          // Prevent default scroll behavior if we are dragging the sheet
+          if (e.cancelable) e.preventDefault();
+          setDragOffset(diff);
+      }
+  };
+
+  const handleTouchEnd = () => {
+      setIsDragging(false);
+      dragStartY.current = null;
+      
+      if (dragOffset > 120) {
+          onClose();
+      } else {
+          setDragOffset(0);
+      }
+  };
+
   if (!isOpen) return null;
 
   const isVideo = mediaFile 
@@ -161,18 +201,26 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
       <div 
         className="fixed inset-0 bg-black/60 z-40 transition-opacity animate-fade-in backdrop-blur-sm"
         onClick={onClose}
+        style={{ opacity: Math.max(0, 1 - dragOffset / 500) }}
       />
       
-      <div className={`
-        fixed z-50 bg-white p-6 shadow-2xl overflow-y-auto
-        
-        // Mobile Layout (Bottom Sheet)
-        bottom-0 left-0 right-0 mx-auto max-w-md rounded-t-3xl max-h-[90vh] animate-slide-up
-        
-        // Desktop/Tablet Layout (Centered Modal)
-        md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 
-        md:w-full md:max-w-lg md:rounded-3xl md:max-h-[85vh] md:animate-scale-up
-      `}>
+      <div 
+        ref={sheetRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{ transform: `translateY(${dragOffset}px)`, transition: isDragging ? 'none' : 'transform 0.2s ease-out' }}
+        className={`
+            fixed z-50 bg-white p-6 shadow-2xl overflow-y-auto
+            
+            // Mobile Layout (Bottom Sheet)
+            bottom-0 left-0 right-0 mx-auto max-w-md rounded-t-3xl max-h-[90vh] animate-slide-up
+            
+            // Desktop/Tablet Layout (Centered Modal - override swipe on desktop mostly)
+            md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 
+            md:w-full md:max-w-lg md:rounded-3xl md:max-h-[85vh] md:animate-scale-up
+        `}
+      >
         {/* Drag Handle (Mobile Only) */}
         <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 opacity-50 md:hidden" />
 

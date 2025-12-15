@@ -34,6 +34,12 @@ export const StudentList: React.FC = () => {
   const [tempStudentName, setTempStudentName] = useState('');
   const [tempStudentPhoto, setTempStudentPhoto] = useState<string>('');
 
+  // Swipe Logic
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = useRef<number | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
   // File Input Ref
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +74,7 @@ export const StudentList: React.FC = () => {
       setTempStudentPhoto('');
       setIsAdding(true);
       setSettingsStudent(null);
+      setDragOffset(0);
   };
 
   // Open Edit Sheet
@@ -76,6 +83,7 @@ export const StudentList: React.FC = () => {
     setTempStudentName(student.name);
     setTempStudentPhoto(student.photo_uri || '');
     setIsAdding(false);
+    setDragOffset(0);
   };
 
   const closeSheet = () => {
@@ -83,6 +91,7 @@ export const StudentList: React.FC = () => {
       setSettingsStudent(null);
       setTempStudentName('');
       setTempStudentPhoto('');
+      setDragOffset(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -130,6 +139,37 @@ export const StudentList: React.FC = () => {
           } catch (err) {
               console.error("Failed to process image", err);
           }
+      }
+  };
+
+  // --- Touch Handlers ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+      // Allow drag if sheet content is scrolled to top
+      if (sheetRef.current && sheetRef.current.scrollTop <= 0) {
+          dragStartY.current = e.touches[0].clientY;
+          setIsDragging(true);
+      }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+      if (dragStartY.current === null) return;
+      
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - dragStartY.current;
+
+      if (diff > 0) {
+          if (e.cancelable) e.preventDefault();
+          setDragOffset(diff);
+      }
+  };
+
+  const handleTouchEnd = () => {
+      setIsDragging(false);
+      dragStartY.current = null;
+      if (dragOffset > 120) {
+          closeSheet();
+      } else {
+          setDragOffset(0);
       }
   };
 
@@ -213,9 +253,18 @@ export const StudentList: React.FC = () => {
 
       {/* Unified Bottom Sheet (Add & Edit) */}
       {(settingsStudent || isAdding) && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm animate-fade-in" onClick={closeSheet}>
+          <div 
+            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center backdrop-blur-sm animate-fade-in" 
+            onClick={closeSheet}
+            style={{ opacity: Math.max(0, 1 - dragOffset / 500) }}
+          >
               <div 
-                className="bg-white w-full max-w-sm sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-slide-up"
+                ref={sheetRef}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                style={{ transform: `translateY(${dragOffset}px)`, transition: isDragging ? 'none' : 'transform 0.2s ease-out' }}
+                className="bg-white w-full max-w-sm sm:rounded-3xl rounded-t-3xl p-6 shadow-2xl animate-slide-up overflow-y-auto max-h-[90vh]"
                 onClick={e => e.stopPropagation()}
               >
                   <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 opacity-60" />
