@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ChevronDown, Target, Check } from 'lucide-react';
 import { Student, Goal } from '../types';
@@ -35,9 +34,9 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="space-y-3">
       {/* 1. Horizontal Scroll Student Profile Bar (Instagram Story Style) */}
-      {/* Refactored: Removed nested w-max div. Now using direct flex container with overflow-x-auto */}
+      {/* Refactored: Removed w-full/max-w-full from parent and scroll container to allow negative margin bleed */}
       <div className="flex overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
           {students.map((s) => {
               const isSelected = selectedStudentId === s.id;

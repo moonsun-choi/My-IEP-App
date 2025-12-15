@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { AlertCircle, TrendingUp, TrendingDown, Minus, Trophy, ChevronDown, Calendar, Target, Check, BarChart2 } from 'lucide-react';
@@ -182,9 +181,8 @@ export const Reports: React.FC = () => {
        <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
            
            {/* Step 1: Student Selector */}
-           {/* Refactored: Removed nested w-max div to prevent overflow */}
-           {/* Added explicit w-full to container as requested */}
-           <div className="w-full flex overflow-x-auto py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
+           {/* Refactored: Removed w-full to allow negative margins to bleed correctly */}
+           <div className="flex overflow-x-auto py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
                 {students.map((s) => {
                     const isSelected = selectedStudentId === s.id;
                     return (
