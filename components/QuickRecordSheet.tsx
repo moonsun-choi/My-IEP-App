@@ -274,11 +274,18 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                         step="5"
                         value={accuracy}
                         onChange={(e) => setAccuracy(parseInt(e.target.value, 10))}
-                        className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 accent-cyan-600"
+                        className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 accent-cyan-600 relative z-10"
                     />
-                        <div className="absolute top-8 left-0 right-0 flex justify-between px-1">
+                    {/* Markers matched to thumb position (thumb width 28px) */}
+                    <div className="absolute top-8 left-0 right-0 h-6">
                         {[0, 25, 50, 75, 100].map((val) => (
-                        <div key={val} className="flex flex-col items-center group">
+                        <div 
+                            key={val} 
+                            className="absolute flex flex-col items-center group -translate-x-1/2"
+                            style={{ 
+                                left: `calc(${val}% + (${14 - val * 0.28}px))` 
+                            }}
+                        >
                             <div className={`h-1.5 w-0.5 mb-1 transition-colors ${accuracy >= val ? 'bg-cyan-500' : 'bg-gray-300'}`}></div>
                             <span className={`text-[10px] font-medium transition-colors ${accuracy >= val ? 'text-cyan-600' : 'text-gray-400'}`}>{val}</span>
                         </div>
