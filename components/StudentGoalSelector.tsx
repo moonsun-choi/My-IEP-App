@@ -37,61 +37,59 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
   return (
     <div className="flex flex-col gap-3">
       {/* 1. Horizontal Scroll Student Profile Bar (Instagram Story Style) */}
-      {/* Removed w-full to prevent horizontal overflow caused by negative margins on full width elements */}
-      <div className="overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-          <div className="flex items-start gap-4 w-max px-1">
-              {students.map((s) => {
-                  const isSelected = selectedStudentId === s.id;
-                  
-                  return (
-                      <button 
-                        key={s.id}
-                        onClick={() => onSelectStudent(s.id)}
-                        className="flex flex-col items-center gap-1.5 shrink-0 group transition-all"
-                      >
-                          {/* Avatar Ring Container */}
-                          <div className={`
-                              rounded-full p-[3px] transition-all duration-300 relative
-                              ${isSelected 
-                                ? 'bg-gradient-to-tr from-cyan-400 to-blue-500 shadow-md scale-105' 
-                                : 'bg-transparent border border-gray-200 hover:border-cyan-200'
-                              }
-                          `}>
-                              {/* Avatar Image */}
-                              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border-2 border-white bg-gray-100 overflow-hidden relative">
-                                  <img 
-                                    src={s.photo_uri} 
-                                    alt={s.name} 
-                                    className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`}
-                                  />
-                              </div>
-                              
-                              {/* Selection Indicator (Check Icon) */}
-                              {isSelected && (
-                                  <div className="absolute bottom-0 right-0 bg-cyan-600 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
-                                      <Check size={10} strokeWidth={4} />
-                                  </div>
-                              )}
+      {/* Refactored: Removed nested w-max div. Now using direct flex container with overflow-x-auto */}
+      <div className="flex overflow-x-auto py-3 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
+          {students.map((s) => {
+              const isSelected = selectedStudentId === s.id;
+              
+              return (
+                  <button 
+                    key={s.id}
+                    onClick={() => onSelectStudent(s.id)}
+                    className="flex flex-col items-center gap-1.5 shrink-0 group transition-all snap-start"
+                  >
+                      {/* Avatar Ring Container */}
+                      <div className={`
+                          rounded-full p-[3px] transition-all duration-300 relative
+                          ${isSelected 
+                            ? 'bg-gradient-to-tr from-cyan-400 to-blue-500 shadow-md scale-105' 
+                            : 'bg-transparent border border-gray-200 hover:border-cyan-200'
+                          }
+                      `}>
+                          {/* Avatar Image */}
+                          <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border-2 border-white bg-gray-100 overflow-hidden relative">
+                              <img 
+                                src={s.photo_uri} 
+                                alt={s.name} 
+                                className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`}
+                              />
                           </div>
                           
-                          {/* Name Label */}
-                          <span className={`
-                              text-xs md:text-sm max-w-[70px] truncate text-center transition-colors
-                              ${isSelected ? 'font-bold text-gray-800' : 'text-gray-500 font-medium group-hover:text-gray-700'}
-                          `}>
-                              {s.name}
-                          </span>
-                      </button>
-                  );
-              })}
-              
-              {/* Empty State / Add Hint (Optional) */}
-              {students.length === 0 && (
-                  <div className="flex flex-col items-center justify-center w-16 h-16 rounded-full bg-gray-50 border border-dashed border-gray-300 text-gray-400">
-                      <span className="text-[10px]">학생 없음</span>
-                  </div>
-              )}
-          </div>
+                          {/* Selection Indicator (Check Icon) */}
+                          {isSelected && (
+                              <div className="absolute bottom-0 right-0 bg-cyan-600 text-white rounded-full p-0.5 border-2 border-white shadow-sm">
+                                  <Check size={10} strokeWidth={4} />
+                              </div>
+                          )}
+                      </div>
+                      
+                      {/* Name Label */}
+                      <span className={`
+                          text-xs md:text-sm max-w-[70px] truncate text-center transition-colors
+                          ${isSelected ? 'font-bold text-gray-800' : 'text-gray-500 font-medium group-hover:text-gray-700'}
+                      `}>
+                          {s.name}
+                      </span>
+                  </button>
+              );
+          })}
+          
+          {/* Empty State / Add Hint (Optional) */}
+          {students.length === 0 && (
+              <div className="flex flex-col items-center justify-center w-16 h-16 rounded-full bg-gray-50 border border-dashed border-gray-300 text-gray-400 shrink-0">
+                  <span className="text-[10px]">학생 없음</span>
+              </div>
+          )}
       </div>
 
       {/* 2. Goal Selector (Dropdown) */}

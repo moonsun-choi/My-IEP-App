@@ -182,41 +182,39 @@ export const Reports: React.FC = () => {
        <div className="bg-cyan-50/50 backdrop-blur-sm -mx-4 md:mx-0 md:rounded-b-[2.5rem] px-6 pt-4 pb-8 shadow-sm mb-6 border-b border-cyan-100">
            
            {/* Step 1: Student Selector */}
-           {/* Updated: Fixed margins to -mx-6 to match px-6 padding of header for true full bleed */}
-           <div className="overflow-x-auto py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide">
-              <div className="flex items-start gap-4 w-max px-1">
-                  {students.map((s) => {
-                      const isSelected = selectedStudentId === s.id;
-                      return (
-                          <button 
-                            key={s.id}
-                            onClick={() => setSelectedStudentId(s.id)}
-                            className="flex flex-col items-center gap-2 shrink-0 group transition-all"
-                          >
-                              <div className={`
-                                  rounded-full p-[3px] transition-all duration-300 relative
-                                  ${isSelected 
-                                    ? 'bg-gradient-to-tr from-cyan-400 to-blue-400 shadow-md scale-105' 
-                                    : 'bg-transparent border-2 border-slate-200 hover:border-cyan-300'
-                                  }
-                              `}>
-                                  {/* Reduced Profile Size: w-12 h-12 */}
-                                  <div className="w-12 h-12 rounded-full border-[3px] border-white bg-slate-100 overflow-hidden relative">
-                                      <img src={s.photo_uri} alt={s.name} className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`} />
-                                  </div>
-                                  {isSelected && (
-                                      <div className="absolute bottom-0 right-0 bg-cyan-600 text-white rounded-full p-0.5 border-2 border-white shadow-sm z-10">
-                                          <Check size={8} strokeWidth={4} />
-                                      </div>
-                                  )}
-                              </div>
-                              <span className={`text-xs max-w-[60px] truncate text-center transition-colors ${isSelected ? 'font-bold text-slate-800' : 'text-slate-500 font-medium'}`}>
-                                  {s.name}
-                              </span>
-                          </button>
-                      );
-                  })}
-              </div>
+           {/* Refactored: Removed nested w-max div to prevent overflow */}
+           {/* Added explicit w-full to container as requested */}
+           <div className="w-full flex overflow-x-auto py-3 -mx-6 px-6 md:mx-0 md:px-0 scrollbar-hide gap-4 snap-x">
+                {students.map((s) => {
+                    const isSelected = selectedStudentId === s.id;
+                    return (
+                        <button 
+                        key={s.id}
+                        onClick={() => setSelectedStudentId(s.id)}
+                        className="flex flex-col items-center gap-2 shrink-0 group transition-all snap-start"
+                        >
+                            <div className={`
+                                rounded-full p-[3px] transition-all duration-300 relative
+                                ${isSelected 
+                                ? 'bg-gradient-to-tr from-cyan-400 to-blue-400 shadow-md scale-105' 
+                                : 'bg-transparent border-2 border-slate-200 hover:border-cyan-300'
+                                }
+                            `}>
+                                <div className="w-12 h-12 rounded-full border-[3px] border-white bg-slate-100 overflow-hidden relative">
+                                    <img src={s.photo_uri} alt={s.name} className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`} />
+                                </div>
+                                {isSelected && (
+                                    <div className="absolute bottom-0 right-0 bg-cyan-600 text-white rounded-full p-0.5 border-2 border-white shadow-sm z-10">
+                                        <Check size={8} strokeWidth={4} />
+                                    </div>
+                                )}
+                            </div>
+                            <span className={`text-xs max-w-[60px] truncate text-center transition-colors ${isSelected ? 'font-bold text-slate-800' : 'text-slate-500 font-medium'}`}>
+                                {s.name}
+                            </span>
+                        </button>
+                    );
+                })}
            </div>
 
            {/* Step 2: Controls Card (Integrated) */}
