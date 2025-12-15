@@ -21,6 +21,9 @@ interface ExtendedAppState extends AppState {
     user: { name: string; email: string; picture: string } | null; // User Profile
     syncStatus: 'idle' | 'syncing' | 'saved' | 'error' | 'cloud_newer';
     lastSyncTime: number;
+    
+    // UI Feedback
+    loadingMessage: string | null;
 
     // Sync Actions
     setOnlineStatus: (isOnline: boolean) => void;
@@ -64,6 +67,7 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         materials: [],
         activeWidgets: ['tracker', 'students'], 
         isLoading: false,
+        loadingMessage: null,
         
         // Sync State
         isOnline: navigator.onLine,
@@ -314,30 +318,33 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             let finalUri: string | undefined = undefined;
             
             if (mediaUri instanceof File) {
-                set({ isLoading: true });
+                set({ isLoading: true, loadingMessage: '미디어 업로드 중...' });
                 try {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
                     if (finalUri === "") {
                         toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
-                        set({ isLoading: false });
+                        set({ isLoading: false, loadingMessage: null });
                         return;
                     }
                 } catch (e) {
                     console.error("Failed to upload media", e);
                     toast.error("미디어 업로드 실패. 네트워크를 확인해주세요.");
-                    set({ isLoading: false });
+                    set({ isLoading: false, loadingMessage: null });
                     return;
-                } finally {
-                    set({ isLoading: false });
                 }
             } else {
                 finalUri = mediaUri;
             }
 
-            await db.addLog(goalId, value, promptLevel, finalUri, notes);
-            await get().fetchLogs(goalId);
-            markDirty();
-            toast.success('기록이 저장되었습니다');
+            set({ isLoading: true, loadingMessage: '데이터 저장 중...' });
+            try {
+                await db.addLog(goalId, value, promptLevel, finalUri, notes);
+                await get().fetchLogs(goalId);
+                markDirty();
+                toast.success('기록이 저장되었습니다');
+            } finally {
+                set({ isLoading: false, loadingMessage: null });
+            }
         },
 
         deleteLog: async (logId: string, goalId: string) => {
@@ -351,30 +358,33 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             let finalUri: string | undefined = undefined;
 
             if (mediaUri instanceof File) {
-                set({ isLoading: true });
+                set({ isLoading: true, loadingMessage: '미디어 업로드 중...' });
                 try {
                     finalUri = await googleDriveService.uploadMedia(mediaUri);
                     if (finalUri === "") {
                         toast.error("파일이 너무 커서 로컬에 저장할 수 없습니다 (20MB 제한). Google Drive 연동을 확인하세요.", { duration: 4000 });
-                        set({ isLoading: false });
+                        set({ isLoading: false, loadingMessage: null });
                         return;
                     }
                 } catch (e) {
                     console.error("Failed to upload media", e);
                     toast.error("미디어 업로드 실패");
-                    set({ isLoading: false });
+                    set({ isLoading: false, loadingMessage: null });
                     return;
-                } finally {
-                    set({ isLoading: false });
                 }
             } else {
                 finalUri = mediaUri;
             }
 
-            await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes);
-            await get().fetchLogs(goalId);
-            markDirty();
-            toast.success('기록이 수정되었습니다');
+            set({ isLoading: true, loadingMessage: '데이터 수정 중...' });
+            try {
+                await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes);
+                await get().fetchLogs(goalId);
+                markDirty();
+                toast.success('기록이 수정되었습니다');
+            } finally {
+                set({ isLoading: false, loadingMessage: null });
+            }
         },
 
         fetchAssessments: async () => {

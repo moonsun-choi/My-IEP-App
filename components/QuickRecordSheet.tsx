@@ -73,7 +73,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   initialNotes = '',
   isEditing = false,
 }) => {
-  const { isLoading } = useStore();
+  const { isLoading, loadingMessage } = useStore();
 
   // Data States
   const [accuracy, setAccuracy] = useState<number>(50);
@@ -200,208 +200,211 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     <>
       <div 
         className="fixed inset-0 bg-black/60 z-40 transition-opacity animate-fade-in backdrop-blur-sm"
-        onClick={onClose}
+        onClick={!isLoading ? onClose : undefined} // Prevent closing while uploading
         style={{ opacity: Math.max(0, 1 - dragOffset / 500) }}
       />
       
-      <div 
-        ref={sheetRef}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        style={{ transform: `translateY(${dragOffset}px)`, transition: isDragging ? 'none' : 'transform 0.2s ease-out' }}
-        className={`
-            fixed z-50 bg-white p-6 shadow-2xl overflow-y-auto
-            
-            // Mobile Layout (Bottom Sheet)
-            bottom-0 left-0 right-0 mx-auto max-w-md rounded-t-3xl max-h-[90vh] animate-slide-up
-            
-            // Desktop/Tablet Layout (Centered Modal - override swipe on desktop mostly)
-            md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 
-            md:w-full md:max-w-lg md:rounded-3xl md:max-h-[85vh] md:animate-scale-up
-        `}
-      >
-        {/* Drag Handle (Mobile Only) */}
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 opacity-50 md:hidden" />
-
-        <div className="flex justify-between items-start mb-4">
-            <h3 className="text-lg font-bold text-gray-800 truncate flex-1 pr-4 leading-tight">
-            {goalTitle}
-            </h3>
-            <div className="flex gap-2">
-                {isEditing && onDelete && (
-                    <button onClick={onDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100 transition-colors">
-                        <Trash2 size={20} />
-                    </button>
-                )}
-                {/* Close Button (More visible on Desktop) */}
-                <button onClick={onClose} className="p-2 text-gray-400 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors hidden md:block">
-                    <X size={20} />
-                </button>
-            </div>
-        </div>
-        
-        {/* Date Time Edit */}
-        {isEditing && (
-             <div className="mb-4 animate-fade-in">
-                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
-                <Calendar size={16} className="text-gray-400 ml-2" />
-                <input 
-                    type="datetime-local" 
-                    value={editDateTime}
-                    onChange={(e) => setEditDateTime(e.target.value)}
-                    className="bg-transparent font-medium text-gray-800 w-full outline-none text-sm p-1"
-                />
-                </div>
-            </div>
-        )}
-
-        {/* Accuracy Slider */}
-        <div className="mb-8">
-            <div className="flex justify-between items-end mb-4">
-                <span className="text-sm font-bold text-gray-500">수행 정확도</span>
-                <span className={`text-3xl font-extrabold transition-colors duration-300 ${accuracy >= 80 ? 'text-green-600' : accuracy >= 50 ? 'text-yellow-500' : 'text-orange-500'}`}>
-                    {accuracy}<span className="text-xl">%</span>
-                </span>
-            </div>
-            <div className="relative h-10 flex items-center">
-                <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={accuracy}
-                    onChange={(e) => setAccuracy(parseInt(e.target.value, 10))}
-                    className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 accent-cyan-600"
-                />
-                    <div className="absolute top-8 left-0 right-0 flex justify-between px-1">
-                    {[0, 25, 50, 75, 100].map((val) => (
-                    <div key={val} className="flex flex-col items-center group">
-                        <div className={`h-1.5 w-0.5 mb-1 transition-colors ${accuracy >= val ? 'bg-cyan-500' : 'bg-gray-300'}`}></div>
-                        <span className={`text-[10px] font-medium transition-colors ${accuracy >= val ? 'text-cyan-600' : 'text-gray-400'}`}>{val}</span>
-                    </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-
-        {/* Prompt Level Selection */}
-        <div className="mb-6">
-            <span className="text-sm font-bold text-gray-500 mb-3 block">촉구 유형 (Prompt Level)</span>
-            <div className="grid grid-cols-2 gap-2">
-                {PROMPT_ORDER.map((key) => {
-                    const config = PROMPT_CONFIG[key];
-                    const Icon = config.icon;
-                    const isSelected = promptLevel === key;
-                    const isIndependent = key === 'independent';
-
-                    return (
-                        <button
-                            key={key}
-                            onClick={() => setPromptLevel(key)}
-                            className={`
-                                relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-200
-                                ${isIndependent ? 'col-span-2 justify-center py-3' : ''}
-                                ${isSelected 
-                                    ? `${config.selectedClass} shadow-sm font-bold` 
-                                    : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
-                                }
-                            `}
-                        >
-                            <Icon size={18} className={isSelected ? config.iconColor : 'text-gray-400'} />
-                            <span className="text-sm">{isIndependent ? config.label : config.shortLabel}</span>
-                            {isSelected && <div className={`w-2 h-2 rounded-full absolute right-3 ${config.selectedClass.split(' ')[0].replace('bg-', 'bg-current ')} opacity-50`} />}
-                        </button>
-                    )
-                })}
-            </div>
-        </div>
-
-        {/* Notes & Media */}
-        <div className="mb-8">
-          <div className="grid grid-cols-2 gap-3">
-             {/* Notes Input */}
-             <div className="col-span-2">
-                 <label className="text-sm font-bold text-gray-500 mb-2 block">메모 & 미디어 추가(선택)</label>
-                 <div className="relative">
-                    <textarea 
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="특이사항이나 관찰 내용을 입력하세요..."
-                        maxLength={1000}
-                        className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:border-cyan-500 outline-none resize-none h-20 transition-all"
-                    />
-                    <MessageSquare size={16} className="absolute top-3.5 left-3.5 text-gray-400" />
-                 </div>
-                 <div className="text-right text-[10px] text-gray-400 mt-1">{notes.length}/1000</div>
-             </div>
-
-             {/* Media Attachment */}
-             <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl h-12 text-gray-400 hover:bg-gray-50 hover:border-cyan-300 hover:text-cyan-500 transition-colors"
-             >
-                <Camera size={18} />
-                <span className="text-xs font-bold">사진/영상 추가</span>
-             </button>
-             <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                className="hidden" 
-                accept="image/*,video/*"
-             />
-             
-             {/* Preview */}
-             {mediaPreview ? (
-                <div className="bg-gray-50 rounded-xl h-12 border border-gray-100 flex items-center justify-between px-3 relative overflow-hidden">
-                     <div className="flex items-center gap-2 z-10 w-full min-w-0">
-                        <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center relative">
-                            {isVideo ? (
-                                <video src={mediaPreview} className="w-full h-full object-cover" muted playsInline />
-                            ) : (
-                                <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" />
-                            )}
-                            {isVideo && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                    <Video size={12} className="text-white" />
-                                </div>
-                            )}
-                        </div>
-                        <span className="text-xs text-gray-500 font-bold truncate">
-                            {mediaFile ? '업로드 대기중' : '첨부 완료'}
-                        </span>
-                     </div>
-                     <button 
-                        onClick={clearMedia}
-                        className="z-10 p-1.5 bg-gray-200 rounded-full hover:bg-gray-300 shrink-0 ml-2"
-                    >
-                        <X size={12} />
-                    </button>
-                </div>
-             ) : (
-                 <div className="flex items-center justify-center h-12 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-300">
-                     미디어 없음
-                 </div>
-             )}
-          </div>
-        </div>
-
-        {/* Save Button */}
-        <button
-          onClick={handleSave}
-          disabled={isLoading}
-          className="w-full py-4 rounded-xl font-bold text-white text-lg bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:shadow-none"
+      {/* Container for positioning: Centers on Desktop, Bottom on Mobile */}
+      <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center pointer-events-none">
+        <div 
+            ref={sheetRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{ 
+                transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined, 
+                transition: isDragging ? 'none' : 'transform 0.2s ease-out' 
+            }}
+            className={`
+                bg-white p-6 shadow-2xl overflow-y-auto w-full pointer-events-auto
+                
+                max-w-md rounded-t-3xl max-h-[90vh] animate-slide-up
+                
+                md:w-full md:max-w-lg md:rounded-3xl md:max-h-[85vh] md:animate-scale-up
+            `}
         >
-          {isLoading ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                <span>저장 중...</span>
-              </>
-          ) : (
-              <span>{isEditing ? '수정 완료' : '기록 저장'}</span>
-          )}
-        </button>
+            {/* Drag Handle (Mobile Only) */}
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 opacity-50 md:hidden" />
+
+            <div className="flex justify-between items-start mb-4">
+                <h3 className="text-lg font-bold text-gray-800 truncate flex-1 pr-4 leading-tight">
+                {goalTitle}
+                </h3>
+                <div className="flex gap-2">
+                    {isEditing && onDelete && (
+                        <button onClick={onDelete} disabled={isLoading} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100 transition-colors disabled:opacity-50">
+                            <Trash2 size={20} />
+                        </button>
+                    )}
+                    {/* Close Button (More visible on Desktop) */}
+                    <button onClick={onClose} disabled={isLoading} className="p-2 text-gray-400 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors hidden md:block disabled:opacity-50">
+                        <X size={20} />
+                    </button>
+                </div>
+            </div>
+            
+            {/* Date Time Edit */}
+            {isEditing && (
+                <div className="mb-4 animate-fade-in">
+                    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
+                    <Calendar size={16} className="text-gray-400 ml-2" />
+                    <input 
+                        type="datetime-local" 
+                        value={editDateTime}
+                        onChange={(e) => setEditDateTime(e.target.value)}
+                        className="bg-transparent font-medium text-gray-800 w-full outline-none text-sm p-1"
+                    />
+                    </div>
+                </div>
+            )}
+
+            {/* Accuracy Slider */}
+            <div className="mb-8">
+                <div className="flex justify-between items-end mb-4">
+                    <span className="text-sm font-bold text-gray-500">수행 정확도</span>
+                    <span className={`text-3xl font-extrabold transition-colors duration-300 ${accuracy >= 80 ? 'text-green-600' : accuracy >= 50 ? 'text-yellow-500' : 'text-orange-500'}`}>
+                        {accuracy}<span className="text-xl">%</span>
+                    </span>
+                </div>
+                <div className="relative h-10 flex items-center">
+                    <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={accuracy}
+                        onChange={(e) => setAccuracy(parseInt(e.target.value, 10))}
+                        className="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 accent-cyan-600"
+                    />
+                        <div className="absolute top-8 left-0 right-0 flex justify-between px-1">
+                        {[0, 25, 50, 75, 100].map((val) => (
+                        <div key={val} className="flex flex-col items-center group">
+                            <div className={`h-1.5 w-0.5 mb-1 transition-colors ${accuracy >= val ? 'bg-cyan-500' : 'bg-gray-300'}`}></div>
+                            <span className={`text-[10px] font-medium transition-colors ${accuracy >= val ? 'text-cyan-600' : 'text-gray-400'}`}>{val}</span>
+                        </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Prompt Level Selection */}
+            <div className="mb-6">
+                <span className="text-sm font-bold text-gray-500 mb-3 block">촉구 유형 (Prompt Level)</span>
+                <div className="grid grid-cols-2 gap-2">
+                    {PROMPT_ORDER.map((key) => {
+                        const config = PROMPT_CONFIG[key];
+                        const Icon = config.icon;
+                        const isSelected = promptLevel === key;
+                        const isIndependent = key === 'independent';
+
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => setPromptLevel(key)}
+                                className={`
+                                    relative flex items-center gap-3 p-3 rounded-xl border transition-all duration-200
+                                    ${isIndependent ? 'col-span-2 justify-center py-3' : ''}
+                                    ${isSelected 
+                                        ? `${config.selectedClass} shadow-sm font-bold` 
+                                        : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                                    }
+                                `}
+                            >
+                                <Icon size={18} className={isSelected ? config.iconColor : 'text-gray-400'} />
+                                <span className="text-sm">{isIndependent ? config.label : config.shortLabel}</span>
+                                {isSelected && <div className={`w-2 h-2 rounded-full absolute right-3 ${config.selectedClass.split(' ')[0].replace('bg-', 'bg-current ')} opacity-50`} />}
+                            </button>
+                        )
+                    })}
+                </div>
+            </div>
+
+            {/* Notes & Media */}
+            <div className="mb-8">
+            <div className="grid grid-cols-2 gap-3">
+                {/* Notes Input */}
+                <div className="col-span-2">
+                    <label className="text-sm font-bold text-gray-500 mb-2 block">메모 & 미디어 추가(선택)</label>
+                    <div className="relative">
+                        <textarea 
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            placeholder="특이사항이나 관찰 내용을 입력하세요..."
+                            maxLength={1000}
+                            className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-200 text-sm focus:border-cyan-500 outline-none resize-none h-20 transition-all"
+                        />
+                        <MessageSquare size={16} className="absolute top-3.5 left-3.5 text-gray-400" />
+                    </div>
+                    <div className="text-right text-[10px] text-gray-400 mt-1">{notes.length}/1000</div>
+                </div>
+
+                {/* Media Attachment */}
+                <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-xl h-12 text-gray-400 hover:bg-gray-50 hover:border-cyan-300 hover:text-cyan-500 transition-colors"
+                >
+                    <Camera size={18} />
+                    <span className="text-xs font-bold">사진/영상 추가</span>
+                </button>
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                    accept="image/*,video/*"
+                />
+                
+                {/* Preview */}
+                {mediaPreview ? (
+                    <div className="bg-gray-50 rounded-xl h-12 border border-gray-100 flex items-center justify-between px-3 relative overflow-hidden">
+                        <div className="flex items-center gap-2 z-10 w-full min-w-0">
+                            <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center relative">
+                                {isVideo ? (
+                                    <video src={mediaPreview} className="w-full h-full object-cover" muted playsInline />
+                                ) : (
+                                    <img src={mediaPreview} alt="preview" className="w-full h-full object-cover" />
+                                )}
+                                {isVideo && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                        <Video size={12} className="text-white" />
+                                    </div>
+                                )}
+                            </div>
+                            <span className="text-xs text-gray-500 font-bold truncate">
+                                {mediaFile ? '업로드 대기중' : '첨부 완료'}
+                            </span>
+                        </div>
+                        <button 
+                            onClick={clearMedia}
+                            className="z-10 p-1.5 bg-gray-200 rounded-full hover:bg-gray-300 shrink-0 ml-2"
+                        >
+                            <X size={12} />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center h-12 bg-gray-50 rounded-xl border border-gray-100 text-xs text-gray-300">
+                        미디어 없음
+                    </div>
+                )}
+            </div>
+            </div>
+
+            {/* Save Button */}
+            <button
+            onClick={handleSave}
+            disabled={isLoading}
+            className="w-full py-4 rounded-xl font-bold text-white text-lg bg-cyan-600 hover:bg-cyan-700 shadow-lg shadow-cyan-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+            >
+            {isLoading ? (
+                <>
+                    <Loader2 size={20} className="animate-spin" />
+                    <span>{loadingMessage || '저장 중...'}</span>
+                </>
+            ) : (
+                <span>{isEditing ? '수정 완료' : '기록 저장'}</span>
+            )}
+            </button>
+        </div>
       </div>
     </>
   );

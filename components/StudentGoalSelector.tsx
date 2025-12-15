@@ -62,11 +62,8 @@ export const StudentGoalSelector: React.FC<StudentGoalSelectorProps> = ({
                                   <img 
                                     src={s.photo_uri} 
                                     alt={s.name} 
-                                    className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}
+                                    className={`w-full h-full object-cover transition-opacity ${isSelected ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'}`}
                                   />
-                                  {isSelected && (
-                                      <div className="absolute inset-0 bg-black/10" />
-                                  )}
                               </div>
                               
                               {/* Selection Indicator (Check Icon) */}

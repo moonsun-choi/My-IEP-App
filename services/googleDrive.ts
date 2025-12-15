@@ -506,12 +506,21 @@ export const googleDriveService = {
         const fileId = data.id;
 
         try {
+            // Updated: Request 'thumbnailLink' explicitly and modify it to get a large image
             const getFileRes = await window.gapi.client.drive.files.get({
                 fileId: fileId,
                 fields: 'webContentLink, thumbnailLink'
             });
-            return getFileRes.result.webContentLink || getFileRes.result.thumbnailLink || "";
+            
+            // Prefer thumbnailLink (high-res modified) for direct embedding
+            if (getFileRes.result.thumbnailLink) {
+                 // Replace default size (=s220) with a larger size (=s1200) to act as a direct link
+                 return getFileRes.result.thumbnailLink.replace(/=s\d+/, '=s1200');
+            }
+
+            return getFileRes.result.webContentLink || "";
         } catch (e) {
+             // Fallback to view link (User might need to click it)
              return `https://drive.google.com/file/d/${fileId}/view`;
         }
 
