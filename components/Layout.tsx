@@ -267,12 +267,16 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         </div>
                    ) : (
                        <button 
-                            onClick={syncLocalToCloud}
+                            onClick={() => {
+                                if(confirm("현재 기기의 데이터를 클라우드에 저장합니다.\n클라우드의 기존 백업 파일은 덮어씌워집니다.\n\n계속하시겠습니까?")) {
+                                    syncLocalToCloud();
+                                }
+                            }}
                             disabled={syncStatus === 'syncing'}
                             className="col-span-3 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 transition-all"
                         >
                             <Upload size={12} /> 
-                            {syncStatus === 'syncing' ? '업로드 중...' : '지금 동기화'}
+                            {syncStatus === 'syncing' ? '업로드 중...' : '백업 저장 (덮어쓰기)'}
                         </button>
                    )}
                    
@@ -360,7 +364,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="p-4 mt-auto">
             {renderProfileCard()}
             <div className="mt-4 text-center">
-                <p className="text-[10px] text-gray-300 font-medium">v1.1.5</p>
+                <p className="text-[10px] text-gray-300 font-medium">v1.1.6</p>
             </div>
         </div>
       </div>
