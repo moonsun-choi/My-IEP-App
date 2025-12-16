@@ -304,7 +304,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                 </div>
 
                 {/* Time Input */}
-                <div className="w-[40%] relative">
+                <div className="flex-1 relative">
                     <label className="text-[10px] font-bold text-gray-500 absolute -top-1.5 left-2 bg-white px-1 z-10">시간</label>
                     <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-100 transition-all h-12">
                         <Clock size={18} className="text-gray-400 shrink-0" />
