@@ -30,6 +30,14 @@ export const DailyData: React.FC = () => {
   // URL Query Params
   const [searchParams] = useSearchParams();
 
+  // Helper to scroll main view to top
+  const scrollToTop = () => {
+      const main = document.querySelector('main');
+      if (main) {
+          main.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+  };
+
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
@@ -148,6 +156,7 @@ export const DailyData: React.FC = () => {
         await deleteLog(editingLog.id, selectedGoalId);
         setIsSheetOpen(false);
         setIsHistoryOpen(false); // Close history if editing from there
+        scrollToTop();
     }
   };
 
@@ -283,7 +292,10 @@ export const DailyData: React.FC = () => {
                               </p>
                           </div>
                       </div>
-                      <button onClick={() => setIsHistoryOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 shrink-0">
+                      <button 
+                          onClick={() => { setIsHistoryOpen(false); scrollToTop(); }} 
+                          className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 shrink-0"
+                      >
                           <X size={24} />
                       </button>
                   </div>
@@ -399,7 +411,7 @@ export const DailyData: React.FC = () => {
 
       <QuickRecordSheet
         isOpen={isSheetOpen}
-        onClose={() => setIsSheetOpen(false)}
+        onClose={() => { setIsSheetOpen(false); scrollToTop(); }}
         onSave={handleSheetSave}
         onDelete={editingLog ? handleSheetDelete : undefined}
         goalTitle={currentGoal?.title || ''}

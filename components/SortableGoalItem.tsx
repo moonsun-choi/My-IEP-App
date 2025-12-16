@@ -39,7 +39,8 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
   });
   
   // --- Swipe & Long Press Logic ---
-  const [touchStart, setTouchStart] = useState<number | null>(null);
+  // Store X and Y to detect scroll vs swipe
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
   const [touchOffset, setTouchOffset] = useState(0);
   const longPressTimer = useRef<any>(null);
   const minSwipeDistance = 80;
@@ -54,7 +55,10 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
       }
 
       if (isEditMode) {
-          setTouchStart(e.targetTouches[0].clientX);
+          setTouchStart({
+              x: e.targetTouches[0].clientX,
+              y: e.targetTouches[0].clientY
+          });
       }
   };
 
@@ -66,13 +70,22 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
       }
 
       if (!isEditMode || touchStart === null) return;
+      
       const currentX = e.targetTouches[0].clientX;
-      const diff = currentX - touchStart;
+      const currentY = e.targetTouches[0].clientY;
+      const diffX = currentX - touchStart.x;
+      const diffY = currentY - touchStart.y;
+      
+      // If vertical movement is dominant, let browser handle scrolling
+      if (Math.abs(diffY) > Math.abs(diffX)) return;
+
+      // Horizontal swipe detected
+      if (e.cancelable) e.preventDefault();
       
       // Limit swipe range
-      if (diff > 120) setTouchOffset(120);
-      else if (diff < -120) setTouchOffset(-120);
-      else setTouchOffset(diff);
+      if (diffX > 120) setTouchOffset(120);
+      else if (diffX < -120) setTouchOffset(-120);
+      else setTouchOffset(diffX);
   };
 
   const handleTouchEnd = () => {
@@ -119,7 +132,8 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
 
   // --- Visual Logic ---
   const getContainerClasses = () => {
-      const base = "relative w-full text-left p-4 rounded-2xl flex items-start gap-3 md:gap-4 group transition-transform touch-none select-none overflow-hidden";
+      // Changed touch-none to touch-pan-y to allow vertical scrolling
+      const base = "relative w-full text-left p-4 rounded-2xl flex items-start gap-3 md:gap-4 group transition-transform touch-pan-y select-none overflow-hidden";
       
       if (isEditMode) {
           // Edit Mode: Unified distinct look (White + Cyan Border)
