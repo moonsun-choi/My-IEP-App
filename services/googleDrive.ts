@@ -509,16 +509,19 @@ export const googleDriveService = {
             // Updated: Request 'thumbnailLink' explicitly and modify it to get a large image
             const getFileRes = await window.gapi.client.drive.files.get({
                 fileId: fileId,
-                fields: 'webContentLink, thumbnailLink'
+                fields: 'webContentLink, thumbnailLink, webViewLink'
             });
             
-            // Prefer thumbnailLink (high-res modified) for direct embedding
-            if (getFileRes.result.thumbnailLink) {
+            // FIX: Use thumbnailLink ONLY for images.
+            // For videos, the thumbnail link is just an image and won't play.
+            if (file.type.startsWith('image/') && getFileRes.result.thumbnailLink) {
                  // Replace default size (=s220) with a larger size (=s1200) to act as a direct link
                  return getFileRes.result.thumbnailLink.replace(/=s\d+/, '=s1200');
             }
 
-            return getFileRes.result.webContentLink || "";
+            // For videos, use webContentLink (direct file data) or webViewLink
+            // webContentLink is better for <video src> attempt, but CORS is tricky.
+            return getFileRes.result.webContentLink || getFileRes.result.webViewLink || "";
         } catch (e) {
              // Fallback to view link (User might need to click it)
              return `https://drive.google.com/file/d/${fileId}/view`;
@@ -532,6 +535,49 @@ export const googleDriveService = {
             console.error("Fallback Base64 failed:", innerE);
             return undefined; 
         }
+    }
+  },
+
+  // Delete Media File from Drive
+  deleteFile: async (fileUri: string) => {
+    const token = window.gapi?.client?.getToken();
+    if (!googleDriveService.isConfigured() || !token) {
+        return; 
+    }
+
+    // Attempt to extract File ID from URI
+    let fileId: string | null = null;
+    
+    try {
+        // Pattern 1: .../d/FILE_ID...
+        const matchD = fileUri.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (matchD) {
+            fileId = matchD[1];
+        } 
+        // Pattern 2: id=FILE_ID
+        else if (fileUri.includes('id=')) {
+            const urlObj = new URL(fileUri);
+            fileId = urlObj.searchParams.get('id');
+        }
+    } catch (e) {
+        // Fallback or invalid URL
+    }
+
+    if (!fileId) return;
+
+    try {
+        // Instead of DELETE (permanent), we use UPDATE to trash it (safer)
+        await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token.access_token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ trashed: true })
+        });
+        console.log(`File ${fileId} moved to trash.`);
+    } catch (e) {
+        console.error("Failed to delete file from Drive", e);
     }
   }
 };

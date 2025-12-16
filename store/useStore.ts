@@ -385,6 +385,13 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         },
 
         deleteLog: async (logId: string, goalId: string) => {
+            // Check for media deletion
+            const logToDelete = get().logs.find(l => l.id === logId);
+            if (logToDelete?.media_uri && logToDelete.media_uri.includes('google')) {
+                // Fire and forget - clean up cloud file
+                googleDriveService.deleteFile(logToDelete.media_uri);
+            }
+
             await db.deleteLog(logId);
             await get().fetchLogs(goalId);
             markDirty();
@@ -395,6 +402,21 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             let tempUri: string | undefined = undefined;
             let fileToUpload: File | null = null;
             let mediaType: string | undefined = undefined;
+
+            // Check for media removal/replacement logic
+            const oldLog = get().logs.find(l => l.id === logId);
+            
+            // If there was media, and the new media is different (either undefined, or a new file/uri)
+            // Note: If mediaUri is a File, it's definitely new. If it's a string, it might be the same or different.
+            if (oldLog?.media_uri && oldLog.media_uri.includes('google')) {
+                const isRemoved = !mediaUri;
+                const isReplaced = mediaUri instanceof File || (typeof mediaUri === 'string' && mediaUri !== oldLog.media_uri);
+
+                if (isRemoved || isReplaced) {
+                    // Delete old file from Drive
+                    googleDriveService.deleteFile(oldLog.media_uri);
+                }
+            }
 
             if (mediaUri instanceof File) {
                 tempUri = URL.createObjectURL(mediaUri);

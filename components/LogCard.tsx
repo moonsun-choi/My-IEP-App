@@ -23,6 +23,9 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
   // 2. OR it is a blob URL (optimistic update) AND mediaType indicates video
   const isVideoBlob = log.media_uri?.startsWith('blob:') && log.mediaType?.startsWith('video/');
   const isLegacyVideo = log.media_uri?.startsWith('data:video');
+  
+  // Only show the inline video player for Local Blobs or Legacy Data URIs.
+  // Remote Drive Videos (webContentLink) should NOT be autoplayed in the list to save data/battery and avoid CORS errors.
   const showVideoPlayer = isVideoBlob || isLegacyVideo;
   
   // For badge display, we just check if the type is video
@@ -79,8 +82,15 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
         >
           {log.media_uri && (
             showVideoPlayer ? (
+                // Local Video Preview
                 <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline loop autoPlay />
+            ) : isVideoType && !showVideoPlayer ? (
+                // Remote Video Placeholder (Drive Link) - Don't try to load as image
+                <div className="absolute inset-0 flex items-center justify-center opacity-30 bg-gray-200">
+                    <Video size={20} className="text-gray-500" />
+                </div>
             ) : (
+                // Image or Fallback
                 <>
                     <img 
                       src={log.media_uri} 
@@ -89,10 +99,10 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
                       referrerPolicy="no-referrer"
                       onError={() => setImgError(true)}
                     />
-                    {/* Fallback Icon if image fails (e.g. video processing or bad link) */}
+                    {/* Fallback Icon if image fails (e.g. broken link) */}
                     {imgError && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-30">
-                            {isVideoType ? <Video size={20} /> : <ImageIcon size={20} />}
+                            <ImageIcon size={20} />
                         </div>
                     )}
                 </>

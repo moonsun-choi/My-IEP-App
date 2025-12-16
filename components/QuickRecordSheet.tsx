@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Calendar, HelpCircle, Hand, Mic, Eye, User, X, Camera, MessageSquare, Video, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Trash2, Calendar, HelpCircle, Hand, Mic, Eye, User, X, Camera, MessageSquare, Video, Loader2, Image as ImageIcon, Clock } from 'lucide-react';
 import { PromptLevel } from '../types';
 import { useStore } from '../store/useStore';
 import { getGoalIcon } from '../utils/goalIcons';
@@ -84,7 +84,10 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   // Data States
   const [accuracy, setAccuracy] = useState<number>(50);
   const [promptLevel, setPromptLevel] = useState<PromptLevel>('verbal');
-  const [editDateTime, setEditDateTime] = useState<string>('');
+  
+  // Split Date/Time State for better mobile UX
+  const [datePart, setDatePart] = useState('');
+  const [timePart, setTimePart] = useState('');
   
   // Media State
   const [mediaPreview, setMediaPreview] = useState<string | undefined>(undefined);
@@ -118,8 +121,12 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
       // Initialize date/time for both New and Edit modes
       const date = (isEditing && initialTimestamp) ? new Date(initialTimestamp) : new Date();
       const pad = (n: number) => n.toString().padStart(2, '0');
-      const localIso = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-      setEditDateTime(localIso);
+      
+      const dStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+      const tStr = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      
+      setDatePart(dStr);
+      setTimePart(tStr);
       
     }
   }, [isOpen, isEditing, initialValue, initialPromptLevel, initialTimestamp, initialMediaUri, initialMediaType, initialNotes]);
@@ -136,8 +143,8 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   const handleSave = () => {
     let timestamp: number;
     // Always use the selected date/time
-    if (editDateTime) {
-        timestamp = new Date(editDateTime).getTime();
+    if (datePart && timePart) {
+        timestamp = new Date(`${datePart}T${timePart}`).getTime();
     } else {
         timestamp = Date.now();
     }
@@ -170,6 +177,16 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     setCurrentMediaType(undefined);
     setPreviewError(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  // Helper to get day name
+  const getDayLabel = (dateStr: string) => {
+    if (!dateStr) return '';
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    // Parse manually to avoid UTC conversion issues on date-only strings
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return `${days[date.getDay()]}요일`;
   };
 
   // --- Touch Handlers for Swipe to Close ---
@@ -245,7 +262,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
             {/* Drag Handle (Mobile Only) */}
             <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 opacity-50 md:hidden" />
 
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
                      <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0 border border-cyan-100">
                          <GoalIconComponent size={20} />
@@ -267,16 +284,38 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                 </div>
             </div>
             
-            {/* Date Time Edit (Available for both New and Edit) */}
-            <div className="mb-4 animate-fade-in">
-                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
-                <Calendar size={16} className="text-gray-400 ml-2" />
-                <input 
-                    type="datetime-local" 
-                    value={editDateTime}
-                    onChange={(e) => setEditDateTime(e.target.value)}
-                    className="bg-transparent font-medium text-gray-800 w-full outline-none text-sm p-1"
-                />
+            {/* Date Time Edit (Split Input for better Mobile UX) */}
+            <div className="flex gap-3 mb-6 animate-fade-in">
+                {/* Date Input */}
+                <div className="flex-1 relative">
+                    <label className="text-[10px] font-bold text-gray-500 absolute -top-1.5 left-2 bg-white px-1 z-10 flex items-center gap-1">
+                        날짜 {datePart && <span className="text-cyan-600">({getDayLabel(datePart)})</span>}
+                    </label>
+                    <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-100 transition-all h-12">
+                        <Calendar size={18} className="text-gray-400 shrink-0" />
+                        <input 
+                            type="date" 
+                            value={datePart}
+                            onChange={(e) => setDatePart(e.target.value)}
+                            className="bg-transparent font-bold text-gray-800 w-full outline-none text-sm p-0"
+                            required
+                        />
+                    </div>
+                </div>
+
+                {/* Time Input */}
+                <div className="w-1/3 relative">
+                    <label className="text-[10px] font-bold text-gray-500 absolute -top-1.5 left-2 bg-white px-1 z-10">시간</label>
+                    <div className="flex items-center gap-2 bg-gray-50 p-3 rounded-xl border border-gray-200 focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-100 transition-all h-12">
+                        <Clock size={18} className="text-gray-400 shrink-0" />
+                        <input 
+                            type="time" 
+                            value={timePart}
+                            onChange={(e) => setTimePart(e.target.value)}
+                            className="bg-transparent font-bold text-gray-800 w-full outline-none text-sm p-0 text-center"
+                            required
+                        />
+                    </div>
                 </div>
             </div>
 

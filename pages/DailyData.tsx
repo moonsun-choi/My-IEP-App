@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { ObservationLog, PromptLevel } from '../types';
-import { History, X, Filter, CheckSquare, Paperclip, MessageSquare, ClipboardX, Plus, ChevronLeft, Target } from 'lucide-react';
+import { History, X, Filter, CheckSquare, Paperclip, MessageSquare, ClipboardX, Plus, ChevronLeft, Target, ExternalLink } from 'lucide-react';
 import { QuickRecordSheet } from '../components/QuickRecordSheet';
 import { LogCard } from '../components/LogCard';
 import { StudentGoalSelector } from '../components/StudentGoalSelector';
@@ -160,6 +160,18 @@ export const DailyData: React.FC = () => {
       // If not (e.g. in mixed history), find in goals array
       const g = goals.find(g => g.id === log.goal_id);
       return g ? { title: g.title, icon: g.icon } : { title: 'Unknown Goal', icon: 'target' };
+  };
+
+  // Helper to extract File ID from Google Drive URL for external link
+  const getDriveViewLink = (uri: string) => {
+      if (!uri) return '';
+      // Handle "uc?export=download&id=..." style
+      if (uri.includes('uc?')) {
+          const id = uri.match(/id=([a-zA-Z0-9_-]+)/)?.[1];
+          if (id) return `https://drive.google.com/file/d/${id}/view`;
+      }
+      // Handle already formatted links
+      return uri; 
   };
 
   if (!currentStudent) return <div className="p-8 text-center text-gray-500">데이터 로딩 중...</div>;
@@ -335,18 +347,32 @@ export const DailyData: React.FC = () => {
                 <X size={28} />
             </button>
 
-            <div className="w-full max-w-4xl max-h-screen p-4 flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
+            <div className="w-full max-w-4xl max-h-screen p-4 flex flex-col items-center justify-center gap-4" onClick={e => e.stopPropagation()}>
                 {(() => {
                     const isVideo = viewingLog.mediaType?.startsWith('video/') || viewingLog.media_uri?.includes('video') || viewingLog.media_uri?.startsWith('data:video');
                     
                     if (isVideo) {
                         return (
-                             <video 
-                                src={viewingLog.media_uri} 
-                                controls 
-                                autoPlay 
-                                className="max-w-full max-h-[80vh] rounded-lg shadow-2xl bg-black"
-                             />
+                            <>
+                                <video 
+                                    src={viewingLog.media_uri} 
+                                    controls 
+                                    playsInline
+                                    className="max-w-full max-h-[70vh] rounded-lg shadow-2xl bg-black"
+                                />
+                                {/* External Link Button for Mobile Compatibility */}
+                                {viewingLog.media_uri?.includes('google') && (
+                                    <a 
+                                        href={getDriveViewLink(viewingLog.media_uri)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm transition-colors"
+                                    >
+                                        <ExternalLink size={16} />
+                                        <span>구글 드라이브 앱에서 열기</span>
+                                    </a>
+                                )}
+                            </>
                         );
                     } else {
                         return (
@@ -361,7 +387,7 @@ export const DailyData: React.FC = () => {
                 })()}
                 
                 {/* Footer Info */}
-                <div className="mt-4 text-white/90 text-center max-w-lg">
+                <div className="text-white/90 text-center max-w-lg">
                      <p className="text-sm font-bold mb-1">
                         {new Date(viewingLog.timestamp).toLocaleString('ko-KR', { dateStyle: 'long', timeStyle: 'short' })}
                      </p>
