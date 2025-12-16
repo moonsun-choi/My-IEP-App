@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, Calendar, HelpCircle, Hand, Mic, Eye, User, X, Camera, MessageSquare, Video, Loader2, Image as ImageIcon } from 'lucide-react';
 import { PromptLevel } from '../types';
 import { useStore } from '../store/useStore';
+import { getGoalIcon } from '../utils/goalIcons';
 
 interface QuickRecordSheetProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface QuickRecordSheetProps {
   onSave: (value: number, promptLevel: PromptLevel, timestamp?: number, mediaUri?: string | File, notes?: string) => void;
   onDelete?: () => void;
   goalTitle: string;
+  goalIcon?: string; // New prop for icon
   initialValue?: number;
   initialPromptLevel?: PromptLevel;
   initialTimestamp?: number;
@@ -67,6 +69,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   onSave,
   onDelete,
   goalTitle,
+  goalIcon,
   initialValue = 0,
   initialPromptLevel = 'verbal', 
   initialTimestamp,
@@ -98,6 +101,8 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   const sheetRef = useRef<HTMLDivElement>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const GoalIconComponent = getGoalIcon(goalIcon);
 
   useEffect(() => {
     if (isOpen) {
@@ -241,9 +246,14 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
             <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 opacity-50 md:hidden" />
 
             <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-bold text-gray-800 truncate flex-1 pr-4 leading-tight">
-                {goalTitle}
-                </h3>
+                <div className="flex items-center gap-3 flex-1 min-w-0 pr-4">
+                     <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center shrink-0 border border-cyan-100">
+                         <GoalIconComponent size={20} />
+                     </div>
+                     <h3 className="text-lg font-bold text-gray-800 truncate leading-tight">
+                        {goalTitle}
+                     </h3>
+                </div>
                 <div className="flex gap-2">
                     {isEditing && onDelete && (
                         <button onClick={onDelete} className="p-2 text-red-500 bg-red-50 rounded-full hover:bg-red-100 transition-colors disabled:opacity-50">

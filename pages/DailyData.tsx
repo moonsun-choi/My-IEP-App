@@ -311,6 +311,7 @@ export const DailyData: React.FC = () => {
         onSave={handleSheetSave}
         onDelete={editingLog ? handleSheetDelete : undefined}
         goalTitle={currentGoal?.title || ''}
+        goalIcon={currentGoal?.icon} // Added prop
         
         initialValue={editingLog?.value}
         
