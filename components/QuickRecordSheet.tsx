@@ -218,13 +218,13 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   return (
     <>
       <div 
-        className="fixed inset-0 bg-black/60 z-40 transition-opacity animate-fade-in backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60 z-[60] transition-opacity animate-fade-in backdrop-blur-sm"
         onClick={onClose}
         style={{ opacity: Math.max(0, 1 - dragOffset / 500) }}
       />
       
       {/* Container for positioning: Centers on Desktop, Bottom on Mobile */}
-      <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center pointer-events-none">
+      <div className="fixed inset-0 z-[70] flex items-end justify-center md:items-center pointer-events-none">
         <div 
             ref={sheetRef}
             onTouchStart={handleTouchStart}

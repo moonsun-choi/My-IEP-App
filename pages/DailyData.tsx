@@ -2,11 +2,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { ObservationLog, PromptLevel } from '../types';
-import { History, X, Filter, CheckSquare, Paperclip, MessageSquare, ClipboardX, Plus } from 'lucide-react';
+import { History, X, Filter, CheckSquare, Paperclip, MessageSquare, ClipboardX, Plus, ChevronLeft, Target } from 'lucide-react';
 import { QuickRecordSheet } from '../components/QuickRecordSheet';
 import { LogCard } from '../components/LogCard';
 import { StudentGoalSelector } from '../components/StudentGoalSelector';
 import { useSearchParams } from 'react-router-dom';
+import { getGoalIcon } from '../utils/goalIcons';
 
 export const DailyData: React.FC = () => {
   const { students, goals, logs, uploadingLogIds, fetchStudents, fetchGoals, fetchLogs, recordTrial, deleteLog, updateLog } = useStore();
@@ -22,6 +23,9 @@ export const DailyData: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyFilterMedia, setHistoryFilterMedia] = useState(false);
   const [historyFilterNotes, setHistoryFilterNotes] = useState(false);
+
+  // Media Viewer State
+  const [viewingLog, setViewingLog] = useState<ObservationLog | null>(null);
 
   // URL Query Params
   const [searchParams] = useSearchParams();
@@ -81,6 +85,9 @@ export const DailyData: React.FC = () => {
 
   const currentStudent = students.find(s => s.id === selectedStudentId);
   const currentGoal = goals.find(g => g.id === selectedGoalId);
+  
+  // Resolve Icon Component for History Header
+  const CurrentGoalIcon = currentGoal ? getGoalIcon(currentGoal.icon) : Target;
 
   const stats = useMemo(() => {
     const total = logs.length;
@@ -120,6 +127,10 @@ export const DailyData: React.FC = () => {
   const handleEditLog = (log: ObservationLog) => {
     setEditingLog(log);
     setIsSheetOpen(true);
+  };
+
+  const handleMediaClick = (log: ObservationLog) => {
+    setViewingLog(log);
   };
 
   const handleSheetSave = async (value: number, promptLevel: PromptLevel, timestamp?: number, mediaUri?: string | File, notes?: string) => {
@@ -213,7 +224,7 @@ export const DailyData: React.FC = () => {
             {recentLogs.map((log) => {
                 const info = getLogGoalInfo(log);
                 const isUploading = uploadingLogIds.includes(log.id);
-                return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} isUploading={isUploading} />;
+                return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} onMediaClick={handleMediaClick} isUploading={isUploading} />;
             })}
             
             {sortedLogs.length > 5 && (
@@ -244,14 +255,23 @@ export const DailyData: React.FC = () => {
           <div className="fixed inset-0 bg-white z-50 flex flex-col animate-slide-up">
               {/* Modal Header */}
               <div className="p-4 border-b border-gray-100 bg-white shrink-0">
-                  <div className="flex justify-between items-center mb-4">
-                      <div>
-                          <h2 className="text-lg font-bold text-gray-800">기록 히스토리</h2>
-                          <p className="text-xs text-gray-500">
-                             {filteredHistoryLogs.length} / {sortedLogs.length}건
-                          </p>
+                  <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3 pr-4">
+                          {currentGoal && (
+                            <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center border border-cyan-100 shrink-0">
+                                <CurrentGoalIcon size={20} />
+                            </div>
+                          )}
+                          <div>
+                              <h2 className="text-lg font-bold text-gray-800 leading-tight line-clamp-2">
+                                  {currentGoal ? currentGoal.title : '전체 기록 히스토리'}
+                              </h2>
+                              <p className="text-xs text-gray-500 mt-0.5 font-medium">
+                                 총 {filteredHistoryLogs.length}개의 기록이 있습니다
+                              </p>
+                          </div>
                       </div>
-                      <button onClick={() => setIsHistoryOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200">
+                      <button onClick={() => setIsHistoryOpen(false)} className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200 shrink-0">
                           <X size={24} />
                       </button>
                   </div>
@@ -297,12 +317,58 @@ export const DailyData: React.FC = () => {
                         filteredHistoryLogs.map((log) => {
                              const info = getLogGoalInfo(log);
                              const isUploading = uploadingLogIds.includes(log.id);
-                             return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} isUploading={isUploading} />
+                             return <LogCard key={log.id} log={log} goalTitle={info.title} goalIcon={info.icon} onClick={handleEditLog} onMediaClick={handleMediaClick} isUploading={isUploading} />
                         })
                     )}
                   </div>
               </div>
           </div>
+      )}
+
+      {/* Media Viewer Modal */}
+      {viewingLog && (
+        <div className="fixed inset-0 z-[100] bg-black flex items-center justify-center animate-fade-in" onClick={() => setViewingLog(null)}>
+            <button 
+                onClick={() => setViewingLog(null)}
+                className="absolute top-4 right-4 text-white/80 hover:text-white p-2 rounded-full bg-black/50 z-20"
+            >
+                <X size={28} />
+            </button>
+
+            <div className="w-full max-w-4xl max-h-screen p-4 flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
+                {(() => {
+                    const isVideo = viewingLog.mediaType?.startsWith('video/') || viewingLog.media_uri?.includes('video') || viewingLog.media_uri?.startsWith('data:video');
+                    
+                    if (isVideo) {
+                        return (
+                             <video 
+                                src={viewingLog.media_uri} 
+                                controls 
+                                autoPlay 
+                                className="max-w-full max-h-[80vh] rounded-lg shadow-2xl bg-black"
+                             />
+                        );
+                    } else {
+                        return (
+                            <img 
+                                src={viewingLog.media_uri} 
+                                alt="Observation" 
+                                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl bg-black"
+                                referrerPolicy="no-referrer"
+                            />
+                        );
+                    }
+                })()}
+                
+                {/* Footer Info */}
+                <div className="mt-4 text-white/90 text-center max-w-lg">
+                     <p className="text-sm font-bold mb-1">
+                        {new Date(viewingLog.timestamp).toLocaleString('ko-KR', { dateStyle: 'long', timeStyle: 'short' })}
+                     </p>
+                     {viewingLog.notes && <p className="text-sm opacity-80">{viewingLog.notes}</p>}
+                </div>
+            </div>
+        </div>
       )}
 
       <QuickRecordSheet

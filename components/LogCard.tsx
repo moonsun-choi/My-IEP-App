@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ObservationLog, PromptLevel } from '../types';
-import { Edit2, Paperclip, MessageSquare, Video, Cloud, Image as ImageIcon } from 'lucide-react';
+import { Edit2, Paperclip, MessageSquare, Video, Cloud, Image as ImageIcon, PlayCircle, Maximize2 } from 'lucide-react';
 import { getGoalIcon } from '../utils/goalIcons';
 
 interface LogCardProps {
@@ -9,10 +9,11 @@ interface LogCardProps {
   goalTitle?: string; // Optional: Show goal title context
   goalIcon?: string;  // Optional: Show goal icon
   onClick: (log: ObservationLog) => void;
+  onMediaClick?: (log: ObservationLog) => void; // New prop for media viewing
   isUploading?: boolean; // New Prop for upload status
 }
 
-export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick, isUploading }) => {
+export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick, onMediaClick, isUploading }) => {
   const [imgError, setImgError] = useState(false);
   const value = log.value;
   const GoalIconComponent = getGoalIcon(goalIcon);
@@ -56,14 +57,26 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
     return 'bg-red-50 text-red-500';
   };
 
+  const handleMediaClick = (e: React.MouseEvent) => {
+      if (log.media_uri && onMediaClick) {
+          e.stopPropagation();
+          onMediaClick(log);
+      }
+  };
+
   return (
-    <button 
+    <div 
       onClick={() => onClick(log)}
-      className={`w-full relative overflow-hidden bg-white p-3 md:p-4 rounded-2xl border flex items-center justify-between active:scale-[0.99] hover:shadow-md transition-all group ${isUploading ? 'border-cyan-200 animate-liquid' : 'border-gray-100'}`}
+      role="button"
+      className={`w-full relative overflow-hidden bg-white p-3 md:p-4 rounded-2xl border flex items-center justify-between active:scale-[0.99] hover:shadow-md transition-all group cursor-pointer ${isUploading ? 'border-cyan-200 animate-liquid' : 'border-gray-100'}`}
     >
       <div className="flex items-center gap-3 md:gap-4 w-full relative z-10">
         {/* Value Box - Always Percentage */}
-        <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold relative overflow-hidden shrink-0 transition-transform group-hover:scale-105 ${getValueColorClass(value)}`}>
+        {/* Added explicit click handler for media viewing */}
+        <div 
+            onClick={handleMediaClick}
+            className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-bold relative overflow-hidden shrink-0 transition-transform group-hover:scale-105 ${getValueColorClass(value)} ${log.media_uri ? 'cursor-zoom-in active:scale-95 ring-offset-1 hover:ring-2 ring-cyan-200' : ''}`}
+        >
           {log.media_uri && (
             showVideoPlayer ? (
                 <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline loop autoPlay />
@@ -85,7 +98,15 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
                 </>
             )
           )}
-          <div className="relative z-10 flex flex-col items-center">
+          
+          {/* Overlay Icon to indicate playability/viewing */}
+          {log.media_uri && !imgError && (
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 z-20">
+                  {isVideoType ? <PlayCircle size={20} className="text-white drop-shadow-md" /> : <Maximize2 size={18} className="text-white drop-shadow-md" />}
+              </div>
+          )}
+
+          <div className="relative z-10 flex flex-col items-center pointer-events-none">
             <span className="text-lg">{value}</span>
             <span className="text-[9px] opacity-70">%</span>
           </div>
@@ -115,8 +136,8 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
             </span>
             {log.media_uri && !isUploading && (
               <span className="bg-cyan-50 text-cyan-500 border border-cyan-100 rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 font-bold">
-                {isVideoType ? <Video size={10} /> : <Paperclip size={10} />}
-                {isVideoType ? '영상' : '자료'}
+                {isVideoType ? <Video size={10} /> : <ImageIcon size={10} />}
+                {isVideoType ? '영상' : '사진'}
               </span>
             )}
             {log.notes && (
@@ -140,6 +161,6 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
         </div>
       </div>
       <Edit2 size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors ml-2 relative z-10" />
-    </button>
+    </div>
   );
 };
