@@ -516,7 +516,9 @@ export const googleDriveService = {
             // For videos, the thumbnail link is just an image and won't play.
             if (file.type.startsWith('image/') && getFileRes.result.thumbnailLink) {
                  // Replace default size (=s220) with a larger size (=s1200) to act as a direct link
-                 return getFileRes.result.thumbnailLink.replace(/=s\d+/, '=s1200');
+                 const link = getFileRes.result.thumbnailLink.replace(/=s\d+/, '=s1200');
+                 // Append ID to fragment so deleteFile can find it later. Browser ignores fragment for image fetching.
+                 return `${link}#id=${fileId}`;
             }
 
             // For videos, use webContentLink (direct file data) or webViewLink
@@ -549,15 +551,23 @@ export const googleDriveService = {
     let fileId: string | null = null;
     
     try {
+        // Pattern 0: appended hash id (Custom fix for thumbnail links)
+        const matchHash = fileUri.match(/#id=([a-zA-Z0-9_-]+)/);
+        if (matchHash) {
+            fileId = matchHash[1];
+        }
         // Pattern 1: .../d/FILE_ID...
-        const matchD = fileUri.match(/\/d\/([a-zA-Z0-9_-]+)/);
-        if (matchD) {
-            fileId = matchD[1];
-        } 
-        // Pattern 2: id=FILE_ID
-        else if (fileUri.includes('id=')) {
-            const urlObj = new URL(fileUri);
-            fileId = urlObj.searchParams.get('id');
+        else {
+            const matchD = fileUri.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (matchD) {
+                fileId = matchD[1];
+            } 
+            // Pattern 2: id=FILE_ID (query param)
+            else if (fileUri.includes('id=')) {
+                // Be more robust than URL parser
+                const matchId = fileUri.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+                if (matchId) fileId = matchId[1];
+            }
         }
     } catch (e) {
         // Fallback or invalid URL
