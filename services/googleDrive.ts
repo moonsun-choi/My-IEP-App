@@ -1,4 +1,3 @@
-
 // --- GOOGLE DRIVE SERVICE ---
 // Note: To make this work, you must create a project in Google Cloud Console,
 // enable the "Google Drive API", and create an OAuth 2.0 Client ID (Web Application).
@@ -190,9 +189,10 @@ export const googleDriveService = {
               });
 
               // Attempt to refresh the session
-              const user = await GoogleAuth.refresh();
+              // GoogleAuth.refresh() returns Authentication object { accessToken, idToken, ... } not User object
+              const authResponse = await GoogleAuth.refresh();
               
-              if (user && user.authentication && user.authentication.accessToken) {
+              if (authResponse && authResponse.accessToken) {
                   console.log("Native Session Restored");
                   
                   // Ensure GAPI is ready to receive the token
@@ -206,13 +206,11 @@ export const googleDriveService = {
                   }
 
                   // Inject Token into GAPI
-                  window.gapi.client.setToken({ access_token: user.authentication.accessToken });
+                  window.gapi.client.setToken({ access_token: authResponse.accessToken });
 
-                  return {
-                      name: user.displayName || user.givenName || 'User',
-                      email: user.email,
-                      picture: user.imageUrl
-                  };
+                  // Since refresh() doesn't return user profile, we fetch it manually
+                  const userInfo = await googleDriveService.getUserInfo();
+                  return userInfo;
               }
           } catch (e) {
               console.log("No valid native session found (User likely logged out).");
@@ -278,6 +276,7 @@ export const googleDriveService = {
                 grantOfflineAccess: true,
             });
 
+            // GoogleAuth.signIn() returns User object { authentication: { accessToken ... }, email, ... }
             const user = await GoogleAuth.signIn();
             console.log("Native Sign In Success", user);
             
