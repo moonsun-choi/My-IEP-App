@@ -136,6 +136,50 @@ export const useStore = create<ExtendedAppState>((set, get) => {
 
             set({ syncStatus: 'syncing' });
             try {
+                // --- Step 1: Check for Local Media and Upload Retroactively ---
+                const allLogs = await db.getAllLogs();
+                // Identify logs with media that are NOT Drive links (Base64/Blob URI)
+                const localMediaLogs = allLogs.filter(l => 
+                    l.media_uri && 
+                    !l.media_uri.includes('googleusercontent') && 
+                    !l.media_uri.includes('drive.google.com') &&
+                    (l.media_uri.startsWith('data:') || l.media_uri.startsWith('blob:'))
+                );
+
+                if (localMediaLogs.length > 0) {
+                    set({ loadingMessage: `미디어 ${localMediaLogs.length}개 업로드 중...` });
+                    toast.loading(`로컬 미디어 ${localMediaLogs.length}개를 드라이브로 업로드합니다...`, { id: 'media-upload' });
+
+                    for (const log of localMediaLogs) {
+                        try {
+                            if (!log.media_uri) continue;
+                            
+                            // Convert Base64/Blob URI to Blob/File
+                            const response = await fetch(log.media_uri);
+                            const blob = await response.blob();
+                            
+                            // Determine extension
+                            const ext = blob.type.split('/')[1] || 'bin';
+                            const fileName = `log_${log.id}.${ext}`;
+                            const file = new File([blob], fileName, { type: blob.type });
+
+                            // Upload
+                            const newUri = await googleDriveService.uploadMedia(file);
+                            
+                            if (newUri) {
+                                // Update DB with Cloud URI
+                                await db.updateLog(log.id, log.value, log.promptLevel, log.timestamp, newUri, log.notes, log.mediaType);
+                            }
+                        } catch (mediaErr) {
+                            console.error(`Failed to upload media for log ${log.id}`, mediaErr);
+                            // Continue to next file even if one fails
+                        }
+                    }
+                    toast.dismiss('media-upload');
+                    set({ loadingMessage: null });
+                }
+
+                // --- Step 2: Proceed with Standard Data Backup ---
                 const data = await db.exportData();
                 await googleDriveService.uploadBackup(data);
                 const now = Date.now();
@@ -144,9 +188,8 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 setTimeout(() => set({ syncStatus: 'idle' }), 2000);
             } catch (e) {
                 console.error("Auto sync failed", e);
-                set({ syncStatus: 'error' });
-                // Do not toast on background auto-sync to avoid annoyance, 
-                // the UI icon will show the error state.
+                set({ syncStatus: 'error', loadingMessage: null });
+                toast.dismiss('media-upload');
             }
         },
 

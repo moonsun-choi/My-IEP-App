@@ -16,7 +16,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   const location = useLocation();
   const { 
-    isLoggedIn, isOnline, syncStatus, user,
+    isLoggedIn, isOnline, syncStatus, user, loadingMessage,
     setLoggedIn, setOnlineStatus, setUser, logout,
     syncCloudToLocal, syncLocalToCloud, checkCloudStatus
   } = useStore();
@@ -216,7 +216,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         {syncStatus === 'syncing' && (
                             <>
                                 <RefreshCw size={12} className="text-cyan-500 animate-spin" />
-                                <span className="text-[10px] text-cyan-500 font-bold">동기화 중</span>
+                                <span className="text-[10px] text-cyan-500 font-bold">{loadingMessage || '동기화 중'}</span>
                             </>
                         )}
                         {syncStatus === 'saved' && (
@@ -243,42 +243,43 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </div>
               </div>
 
+              {/* Explicit Sync Buttons for User Choice */}
               <div className="grid grid-cols-4 gap-2">
-                   {syncStatus === 'cloud_newer' ? (
-                        <div className="col-span-3 flex gap-1.5">
-                            <button 
-                                onClick={syncCloudToLocal}
-                                className="flex-1 bg-orange-50 text-orange-600 border border-orange-100 py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-orange-100 active:scale-95 transition-all leading-none"
-                            >
-                                <Download size={14} className="mb-0.5"/>
-                                <span>복원</span>
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    if(confirm("현재 기기의 데이터로 클라우드 백업을 덮어씁니다.\n(클라우드에 있는 이전 데이터는 삭제됩니다)\n\n계속하시겠습니까?")) {
-                                        syncLocalToCloud();
-                                    }
-                                }}
-                                className="flex-1 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-gray-50 active:scale-95 transition-all leading-none"
-                            >
-                                <Upload size={14} className="mb-0.5"/>
-                                <span>덮어쓰기</span>
-                            </button>
-                        </div>
-                   ) : (
-                       <button 
+                   <div className="col-span-3 flex gap-1.5">
+                        {/* Download / Restore Button */}
+                        <button 
                             onClick={() => {
-                                if(confirm("현재 기기의 데이터를 클라우드에 저장합니다.\n클라우드의 기존 백업 파일은 덮어씌워집니다.\n\n계속하시겠습니까?")) {
+                                if(confirm("클라우드 데이터를 기기로 내려받습니다.\n(기기의 현재 데이터는 삭제되고 복원됩니다)\n\n계속하시겠습니까?")) {
+                                    syncCloudToLocal();
+                                }
+                            }}
+                            disabled={syncStatus === 'syncing'}
+                            className={`
+                                flex-1 border py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-opacity-50 active:scale-95 transition-all leading-none
+                                ${syncStatus === 'cloud_newer' 
+                                    ? 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100' 
+                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                }
+                            `}
+                        >
+                            <Download size={14} className={`mb-0.5 ${syncStatus === 'cloud_newer' ? 'animate-bounce' : ''}`}/>
+                            <span>내려받기(복원)</span>
+                        </button>
+
+                        {/* Upload / Overwrite Button */}
+                        <button 
+                            onClick={() => {
+                                if(confirm("기기 데이터를 클라우드에 업로드합니다.\n(클라우드의 기존 백업 파일은 덮어씌워집니다)\n\n계속하시겠습니까?")) {
                                     syncLocalToCloud();
                                 }
                             }}
                             disabled={syncStatus === 'syncing'}
-                            className="col-span-3 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-50 transition-all"
+                            className="flex-1 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-gray-50 active:scale-95 transition-all leading-none"
                         >
-                            <Upload size={12} /> 
-                            {syncStatus === 'syncing' ? '업로드 중...' : '백업 저장 (덮어쓰기)'}
+                            <Upload size={14} className="mb-0.5"/>
+                            <span>올리기(백업)</span>
                         </button>
-                   )}
+                   </div>
                    
                    <button 
                         onClick={logout}

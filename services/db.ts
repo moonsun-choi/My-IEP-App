@@ -271,6 +271,13 @@ class DatabaseService {
   }
 
   // --- Logs (Trials) ---
+  // Helper to get all logs for media scanning
+  async getAllLogs(): Promise<ObservationLog[]> {
+      const db = await this.dbPromise;
+      const logs = await db.getAll('logs');
+      return logs;
+  }
+
   async getLogs(goalId: string): Promise<ObservationLog[]> {
     const db = await this.dbPromise;
     const logs = await db.getAllFromIndex('logs', 'by-goal', goalId);
