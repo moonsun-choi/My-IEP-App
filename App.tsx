@@ -15,6 +15,7 @@ const App: React.FC = () => {
       <Toaster 
         position="bottom-center"
         toastOptions={{
+            duration: 2000, // Default duration set to 2 seconds
             style: {
                 borderRadius: '16px',
                 background: '#333',

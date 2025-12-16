@@ -170,7 +170,7 @@ export const SortableGoalItem: React.FC<SortableGoalItemProps> = ({
   };
 
   return (
-    <div className="relative group touch-none mb-2">
+    <div className="relative group touch-pan-y mb-2">
        {/* Background Actions (Swipe Reveal) */}
        {isEditMode && (
          <div className="absolute inset-0 rounded-2xl flex overflow-hidden shadow-inner bg-gray-100">

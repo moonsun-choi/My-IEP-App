@@ -84,7 +84,7 @@ export const googleDriveService = {
             GoogleAuth.initialize({
                 clientId: CLIENT_ID, // Use WEB Client ID here
                 scopes: ['https://www.googleapis.com/auth/drive.file'],
-                grantOfflineAccess: false, 
+                grantOfflineAccess: true, 
             });
         } catch (e) {
             console.error("GoogleAuth.initialize failed:", e);
@@ -177,12 +177,52 @@ export const googleDriveService = {
     if (onInitCallback) onInitCallback();
   },
 
-  // Attempt to restore session from localStorage (Web)
+  // Attempt to restore session
   restoreSession: async (): Promise<any> => {
-      // Native platforms usually persist session via the plugin automatically or require different handling.
-      // This implementation targets the Web "Refresh" scenario.
-      if (Capacitor.isNativePlatform()) return null;
+      // --- NATIVE RESTORE ---
+      if (Capacitor.isNativePlatform()) {
+          try {
+              // Ensure plugin is initialized before refresh
+              GoogleAuth.initialize({
+                  clientId: CLIENT_ID,
+                  scopes: ['https://www.googleapis.com/auth/drive.file'],
+                  grantOfflineAccess: true, 
+              });
 
+              // Attempt to refresh the session
+              const user = await GoogleAuth.refresh();
+              
+              if (user && user.authentication && user.authentication.accessToken) {
+                  console.log("Native Session Restored");
+                  
+                  // Ensure GAPI is ready to receive the token
+                  if (!window.gapi || !window.gapi.client) {
+                      await loadScript('https://apis.google.com/js/api.js');
+                      await new Promise<void>((resolve) => window.gapi.load('client', resolve));
+                      await window.gapi.client.init({
+                          apiKey: API_KEY,
+                          discoveryDocs: [DISCOVERY_DOC],
+                      });
+                  }
+
+                  // Inject Token into GAPI
+                  window.gapi.client.setToken({ access_token: user.authentication.accessToken });
+
+                  return {
+                      name: user.displayName || user.givenName || 'User',
+                      email: user.email,
+                      picture: user.imageUrl
+                  };
+              }
+          } catch (e) {
+              console.log("No valid native session found (User likely logged out).");
+              // This is normal if user never logged in or explicitly logged out
+              return null;
+          }
+          return null;
+      }
+
+      // --- WEB RESTORE ---
       const token = localStorage.getItem('google_access_token');
       const expiry = localStorage.getItem('google_token_expiry');
       
@@ -192,6 +232,7 @@ export const googleDriveService = {
       if (Date.now() > parseInt(expiry, 10)) {
           localStorage.removeItem('google_access_token');
           localStorage.removeItem('google_token_expiry');
+          localStorage.removeItem('iep_user_profile');
           return null;
       }
 
@@ -200,13 +241,27 @@ export const googleDriveService = {
           window.gapi.client.setToken({ access_token: token });
           
           // Verify token validity by fetching profile
+          // Optimistic: If we have a cached profile, we can use it even if network check fails
+          const cachedProfile = localStorage.getItem('iep_user_profile');
+          const userProfile = cachedProfile ? JSON.parse(cachedProfile) : null;
+
+          // Attempt to verify online
           const user = await googleDriveService.getUserInfo();
           if (user) {
-              return user;
+              return user; // Success (Cache updated inside getUserInfo)
           } else {
-              // Token invalid or revoked
+              // Fetch failed (Network or Auth error)
+              // If we have a cached profile and token is mathematically valid (checked above), return cached profile.
+              // This allows offline app restart or handling flaky networks.
+              if (userProfile) {
+                  console.warn("Using cached user profile (Offline/Verify Failed)");
+                  return userProfile;
+              }
+
+              // Only clear if we really can't verify and have no cache
               localStorage.removeItem('google_access_token');
               localStorage.removeItem('google_token_expiry');
+              localStorage.removeItem('iep_user_profile');
           }
       }
       return null;
@@ -220,7 +275,7 @@ export const googleDriveService = {
              GoogleAuth.initialize({
                 clientId: CLIENT_ID,
                 scopes: ['https://www.googleapis.com/auth/drive.file'],
-                grantOfflineAccess: false,
+                grantOfflineAccess: true,
             });
 
             const user = await GoogleAuth.signIn();
@@ -233,6 +288,13 @@ export const googleDriveService = {
             if (!window.gapi || !window.gapi.client) {
                 await loadScript('https://apis.google.com/js/api.js');
                 await new Promise<void>((resolve) => window.gapi.load('client', resolve));
+                // We might need to init with API Key here if not done yet
+                if (API_KEY) {
+                    await window.gapi.client.init({
+                        apiKey: API_KEY,
+                        discoveryDocs: [DISCOVERY_DOC],
+                    });
+                }
             }
             
             window.gapi.client.setToken({ access_token: accessToken });
@@ -300,7 +362,10 @@ export const googleDriveService = {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           if (res.ok) {
-              return await res.json();
+              const data = await res.json();
+              // Cache profile for persistence
+              localStorage.setItem('iep_user_profile', JSON.stringify(data));
+              return data;
           }
       } catch (e) {
           console.error("Failed to fetch user info", e);
@@ -313,6 +378,7 @@ export const googleDriveService = {
       // Clear Local Storage
       localStorage.removeItem('google_access_token');
       localStorage.removeItem('google_token_expiry');
+      localStorage.removeItem('iep_user_profile');
 
       // 1. Native Sign Out
       if (Capacitor.isNativePlatform()) {
