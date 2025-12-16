@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Calendar, HelpCircle, Hand, Mic, Eye, User, X, Camera, MessageSquare, Video, Loader2 } from 'lucide-react';
+import { Trash2, Calendar, HelpCircle, Hand, Mic, Eye, User, X, Camera, MessageSquare, Video, Loader2, Image as ImageIcon } from 'lucide-react';
 import { PromptLevel } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -87,6 +87,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   const [mediaPreview, setMediaPreview] = useState<string | undefined>(undefined);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [currentMediaType, setCurrentMediaType] = useState<string | undefined>(undefined);
+  const [previewError, setPreviewError] = useState(false);
   
   const [notes, setNotes] = useState<string>('');
   
@@ -107,15 +108,14 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
       setNotes(initialNotes);
       setAccuracy(isEditing ? initialValue : 50);
       setDragOffset(0); // Reset drag
+      setPreviewError(false); // Reset preview error
 
-      if (isEditing && initialTimestamp) {
-          const date = new Date(initialTimestamp);
-          const pad = (n: number) => n.toString().padStart(2, '0');
-          const localIso = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-          setEditDateTime(localIso);
-      } else {
-        setEditDateTime('');
-      }
+      // Initialize date/time for both New and Edit modes
+      const date = (isEditing && initialTimestamp) ? new Date(initialTimestamp) : new Date();
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const localIso = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      setEditDateTime(localIso);
+      
     }
   }, [isOpen, isEditing, initialValue, initialPromptLevel, initialTimestamp, initialMediaUri, initialMediaType, initialNotes]);
 
@@ -129,9 +129,12 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
   }, [mediaPreview]);
 
   const handleSave = () => {
-    let timestamp: number | undefined;
-    if (isEditing && editDateTime) {
+    let timestamp: number;
+    // Always use the selected date/time
+    if (editDateTime) {
         timestamp = new Date(editDateTime).getTime();
+    } else {
+        timestamp = Date.now();
     }
     
     // Pass the File object if a new file was selected, otherwise pass the existing URI string
@@ -146,6 +149,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     if (file) {
       setMediaFile(file); // Store the file for upload
       setCurrentMediaType(file.type); // Update type state
+      setPreviewError(false); // Reset error
       
       // OPTIMIZED: Use createObjectURL instead of FileReader for large files (prevents mobile crash)
       const objectUrl = URL.createObjectURL(file);
@@ -159,6 +163,7 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
     setMediaPreview(undefined);
     setMediaFile(null);
     setCurrentMediaType(undefined);
+    setPreviewError(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -252,20 +257,18 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                 </div>
             </div>
             
-            {/* Date Time Edit */}
-            {isEditing && (
-                <div className="mb-4 animate-fade-in">
-                    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
-                    <Calendar size={16} className="text-gray-400 ml-2" />
-                    <input 
-                        type="datetime-local" 
-                        value={editDateTime}
-                        onChange={(e) => setEditDateTime(e.target.value)}
-                        className="bg-transparent font-medium text-gray-800 w-full outline-none text-sm p-1"
-                    />
-                    </div>
+            {/* Date Time Edit (Available for both New and Edit) */}
+            <div className="mb-4 animate-fade-in">
+                <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
+                <Calendar size={16} className="text-gray-400 ml-2" />
+                <input 
+                    type="datetime-local" 
+                    value={editDateTime}
+                    onChange={(e) => setEditDateTime(e.target.value)}
+                    className="bg-transparent font-medium text-gray-800 w-full outline-none text-sm p-1"
+                />
                 </div>
-            )}
+            </div>
 
             {/* Accuracy Slider */}
             <div className="mb-8">
@@ -374,18 +377,27 @@ export const QuickRecordSheet: React.FC<QuickRecordSheetProps> = ({
                 {mediaPreview ? (
                     <div className="bg-gray-50 rounded-xl h-12 border border-gray-100 flex items-center justify-between px-3 relative overflow-hidden">
                         <div className="flex items-center gap-2 z-10 w-full min-w-0">
-                            <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center relative">
+                            <div className="w-8 h-8 rounded bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center relative border border-gray-200">
                                 {isVideo && isPlayable ? (
                                     <video src={mediaPreview} className="w-full h-full object-cover" muted playsInline />
                                 ) : (
-                                    <img 
-                                      src={mediaPreview} 
-                                      alt="preview" 
-                                      className="w-full h-full object-cover"
-                                      referrerPolicy="no-referrer"
-                                    />
+                                    <>
+                                        <img 
+                                          src={mediaPreview} 
+                                          alt="preview" 
+                                          className={`w-full h-full object-cover ${previewError ? 'hidden' : ''}`}
+                                          referrerPolicy="no-referrer"
+                                          onError={() => setPreviewError(true)}
+                                        />
+                                        {/* Fallback Icon for preview */}
+                                        {previewError && (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                                                {isVideo ? <Video size={14} className="text-gray-400" /> : <ImageIcon size={14} className="text-gray-400" />}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
-                                {isVideo && (
+                                {isVideo && !previewError && (
                                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                                         <Video size={12} className="text-white" />
                                     </div>

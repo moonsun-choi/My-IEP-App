@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ObservationLog, PromptLevel } from '../types';
-import { Edit2, Paperclip, MessageSquare, Video, Loader2, Cloud } from 'lucide-react';
+import { Edit2, Paperclip, MessageSquare, Video, Cloud, Image as ImageIcon } from 'lucide-react';
 import { getGoalIcon } from '../utils/goalIcons';
 
 interface LogCardProps {
@@ -13,19 +13,24 @@ interface LogCardProps {
 }
 
 export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick, isUploading }) => {
+  const [imgError, setImgError] = useState(false);
   const value = log.value;
   const GoalIconComponent = getGoalIcon(goalIcon);
   
   // Logic to determine if we should render a <video> tag
   // 1. It is a legacy base64 video string (data:video)
   // 2. OR it is a blob URL (optimistic update) AND mediaType indicates video
-  // Note: For Google Drive thumbnails (http...), we use <img> even if it's a video file, because it's a thumbnail image.
   const isVideoBlob = log.media_uri?.startsWith('blob:') && log.mediaType?.startsWith('video/');
   const isLegacyVideo = log.media_uri?.startsWith('data:video');
   const showVideoPlayer = isVideoBlob || isLegacyVideo;
   
   // For badge display, we just check if the type is video
   const isVideoType = log.mediaType?.startsWith('video/') || isLegacyVideo || log.media_uri?.includes('video');
+
+  // Reset error state if URI changes
+  useEffect(() => {
+    setImgError(false);
+  }, [log.media_uri]);
 
   const getPromptLabel = (level: PromptLevel) => {
     const map: Record<string, string> = {
@@ -63,12 +68,21 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
             showVideoPlayer ? (
                 <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline loop autoPlay />
             ) : (
-                <img 
-                  src={log.media_uri} 
-                  alt="" 
-                  className="absolute inset-0 w-full h-full object-cover opacity-30" 
-                  referrerPolicy="no-referrer"
-                />
+                <>
+                    <img 
+                      src={log.media_uri} 
+                      alt="" 
+                      className={`absolute inset-0 w-full h-full object-cover opacity-30 ${imgError ? 'hidden' : ''}`}
+                      referrerPolicy="no-referrer"
+                      onError={() => setImgError(true)}
+                    />
+                    {/* Fallback Icon if image fails (e.g. video processing or bad link) */}
+                    {imgError && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-30">
+                            {isVideoType ? <Video size={20} /> : <ImageIcon size={20} />}
+                        </div>
+                    )}
+                </>
             )
           )}
           <div className="relative z-10 flex flex-col items-center">
