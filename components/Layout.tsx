@@ -194,20 +194,31 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       return (
           <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm relative group">
-              <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200 shrink-0">
-                      {user?.picture ? (
-                          <img src={user.picture} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <UserIcon size={20} />
-                          </div>
-                      )}
+              <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200 shrink-0">
+                        {user?.picture ? (
+                            <img src={user.picture} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                <UserIcon size={20} />
+                            </div>
+                        )}
+                    </div>
+                    <div className="min-w-0">
+                        <div className="text-sm font-bold text-gray-800 truncate leading-tight">{user?.name || '사용자'}</div>
+                        <div className="text-[10px] text-gray-400 truncate">{user?.email}</div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-gray-800 truncate leading-tight">{user?.name || '사용자'}</div>
-                      <div className="text-[10px] text-gray-400 truncate">{user?.email}</div>
-                  </div>
+                  
+                  {/* Logout Button moved here */}
+                  <button 
+                        onClick={logout}
+                        title="로그아웃"
+                        className="p-2 -mr-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                   >
+                       <LogOut size={16} />
+                   </button>
               </div>
 
               <div className="flex items-center justify-between bg-gray-50 rounded-lg p-2.5 mb-3">
@@ -243,51 +254,41 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                     </div>
               </div>
 
-              {/* Explicit Sync Buttons for User Choice */}
-              <div className="grid grid-cols-4 gap-2">
-                   <div className="col-span-3 flex gap-1.5">
-                        {/* Download / Restore Button */}
-                        <button 
-                            onClick={() => {
-                                if(confirm("클라우드 데이터를 기기로 내려받습니다.\n(기기의 현재 데이터는 삭제되고 복원됩니다)\n\n계속하시겠습니까?")) {
-                                    syncCloudToLocal();
-                                }
-                            }}
-                            disabled={syncStatus === 'syncing'}
-                            className={`
-                                flex-1 border py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-opacity-50 active:scale-95 transition-all leading-none
-                                ${syncStatus === 'cloud_newer' 
-                                    ? 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100' 
-                                    : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                }
-                            `}
-                        >
-                            <Download size={14} className={`mb-0.5 ${syncStatus === 'cloud_newer' ? 'animate-bounce' : ''}`}/>
-                            <span>내려받기(복원)</span>
-                        </button>
+              {/* Explicit Sync Buttons for User Choice (50:50 Split) */}
+              <div className="flex gap-2 w-full">
+                    {/* Download / Restore Button */}
+                    <button 
+                        onClick={() => {
+                            if(confirm("클라우드 데이터를 기기로 내려받습니다.\n(기기의 현재 데이터는 삭제되고 복원됩니다)\n\n계속하시겠습니까?")) {
+                                syncCloudToLocal();
+                            }
+                        }}
+                        disabled={syncStatus === 'syncing'}
+                        className={`
+                            flex-1 border py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-opacity-50 active:scale-95 transition-all leading-none
+                            ${syncStatus === 'cloud_newer' 
+                                ? 'bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100' 
+                                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            }
+                        `}
+                    >
+                        <Download size={14} className={`mb-0.5 ${syncStatus === 'cloud_newer' ? 'animate-bounce' : ''}`}/>
+                        <span>내려받기(복원)</span>
+                    </button>
 
-                        {/* Upload / Overwrite Button */}
-                        <button 
-                            onClick={() => {
-                                if(confirm("기기 데이터를 클라우드에 업로드합니다.\n(클라우드의 기존 백업 파일은 덮어씌워집니다)\n\n계속하시겠습니까?")) {
-                                    syncLocalToCloud();
-                                }
-                            }}
-                            disabled={syncStatus === 'syncing'}
-                            className="flex-1 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-gray-50 active:scale-95 transition-all leading-none"
-                        >
-                            <Upload size={14} className="mb-0.5"/>
-                            <span>올리기(백업)</span>
-                        </button>
-                   </div>
-                   
-                   <button 
-                        onClick={logout}
-                        title="로그아웃"
-                        className="col-span-1 bg-white border border-gray-200 text-red-400 py-2 rounded-lg flex items-center justify-center hover:bg-red-50 hover:border-red-100 hover:text-red-500 transition-all"
-                   >
-                       <LogOut size={14} />
-                   </button>
+                    {/* Upload / Overwrite Button */}
+                    <button 
+                        onClick={() => {
+                            if(confirm("기기 데이터를 클라우드에 업로드합니다.\n(클라우드의 기존 백업 파일은 덮어씌워집니다)\n\n계속하시겠습니까?")) {
+                                syncLocalToCloud();
+                            }
+                        }}
+                        disabled={syncStatus === 'syncing'}
+                        className="flex-1 bg-white border border-gray-200 text-gray-600 py-2 rounded-lg text-[10px] font-bold flex flex-col items-center justify-center gap-0.5 hover:bg-gray-50 active:scale-95 transition-all leading-none"
+                    >
+                        <Upload size={14} className="mb-0.5"/>
+                        <span>올리기(백업)</span>
+                    </button>
               </div>
           </div>
       );
