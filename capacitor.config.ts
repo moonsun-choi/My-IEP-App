@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.myiep.app',
-  appName: 'My IEP App',
+  appName: 'MyIEP',
   webDir: 'dist',
   server: {
     androidScheme: 'https'
