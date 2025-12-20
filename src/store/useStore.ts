@@ -143,7 +143,8 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                     l.media_uri && 
                     !l.media_uri.includes('googleusercontent') && 
                     !l.media_uri.includes('drive.google.com') &&
-                    (l.media_uri.startsWith('data:') || l.media_uri.startsWith('blob:'))
+                    (l.media_uri.startsWith('data:') || l.media_uri.startsWith('blob:')) &&
+                    !get().uploadingLogIds.includes(l.id)
                 );
 
                 if (localMediaLogs.length > 0) {
@@ -388,11 +389,27 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 if (fileToUpload) {
                     const logId = newLog.id;
                     
-                    // Add to uploading list to show UI feedback
+                    // 1) 학생 이름 찾기
+                    const state = get();
+                    const goal = state.goals.find(g => g.id === goalId);
+                    const student = state.students.find(s => s.id === goal?.student_id);
+                    const studentName = student?.name || '학생';
+
+                    // 2) 날짜 문자열 만들기 (YYYYMMDD 형식)
+                    const now = new Date();
+                    const dateStr = now.getFullYear() +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0');
+
+                    // 3) 파일명 조합하기: "20240520_김철수_원본파일.jpg"
+                    const prettyFileName = `${dateStr}_${studentName}_${fileToUpload.name}`;
+
                     set(state => ({ uploadingLogIds: [...state.uploadingLogIds, logId] }));
                     
+                    // 4) uploadMedia 함수에 만든 파일명(prettyFileName)을 같이 전달
                     // Don't await this! Let it run in background.
-                    googleDriveService.uploadMedia(fileToUpload).then(async (finalUri) => {
+                    googleDriveService.uploadMedia(fileToUpload, prettyFileName).then(async (finalUri) => {
+
                         if (finalUri) {
                             // Update the log with the real Cloud URI
                             // If finalUri is likely an image (thumbnail), we can update mediaType or leave it.

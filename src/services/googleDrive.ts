@@ -528,7 +528,7 @@ export const googleDriveService = {
   },
 
   // Upload Media File (Image/Video)
-  uploadMedia: async (file: File): Promise<string | undefined> => {
+  uploadMedia: async (file: File, customName?: string): Promise<string | undefined> => {
     const token = window.gapi?.client?.getToken();
     const hasToken = googleDriveService.isConfigured() && !!token;
 
@@ -547,7 +547,7 @@ export const googleDriveService = {
         const folderId = await googleDriveService.ensureMediaFolder();
 
         const metadata = {
-            name: file.name,
+            name: customName || file.name,
             mimeType: file.type,
             parents: [folderId]
         };
