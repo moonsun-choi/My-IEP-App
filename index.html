@@ -3,14 +3,9 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
+    <!-- viewport-fit=cover: 노치 디자인(아이폰 등)까지 화면을 꽉 채움 -->
+    <!-- user-scalable=no: 손가락으로 화면 확대/축소 금지 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <meta name="theme-color" content="#0891b2" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="My IEP" />
-    
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=IEP&background=0891b2&color=fff&size=192" />
     
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website" />
@@ -23,23 +18,31 @@
     <title>My IEP App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      /* 전체 앱 스타일 설정 */
       body {
+        /* 글자 드래그 선택 방지 (앱처럼 느낌) */
         user-select: none;
         -webkit-user-select: none;
+        /* 터치했을 때 파란색 박스 뜨는 것 방지 */
         -webkit-tap-highlight-color: transparent;
+        /* 스크롤 바운스(튕김) 방지 */
         overscroll-behavior-y: none;
       }
+
+      /* 입력창(input, textarea)은 글자 선택이 가능해야 함 */
       input, textarea {
         user-select: text;
         -webkit-user-select: text;
       }
+
+      /* 슬라이더 스타일 (Theme Updated: Lime Green Thumb) */
       input[type=range]::-webkit-slider-thumb {
         -webkit-appearance: none;
         height: 28px;
         width: 28px;
         border-radius: 50%;
         background: #ffffff;
-        border: 3px solid #84cc16;
+        border: 3px solid #84cc16; /* lime-500 */
         cursor: pointer;
         margin-top: -12px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.15);
@@ -51,6 +54,8 @@
         background: #e5e7eb;
         border-radius: 9999px;
       }
+      
+      /* 커스텀 스크롤바 */
       .custom-scrollbar::-webkit-scrollbar {
         width: 6px;
       }
@@ -61,6 +66,8 @@
         background-color: #cbd5e1;
         border-radius: 20px;
       }
+
+      /* 스크롤바 숨김 (가로 스크롤 UX 개선) */
       .scrollbar-hide::-webkit-scrollbar {
         display: none;
       }
@@ -68,11 +75,14 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
+
+      /* Liquid Wave Animation for Uploading State */
       @keyframes liquid-wave {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
       }
+      
       .animate-liquid {
         background: linear-gradient(-45deg, #ecfeff, #cffafe, #ecfeff, #fff);
         background-size: 400% 400%;
@@ -105,17 +115,5 @@
   <body class="bg-slate-50 text-gray-900 select-none antialiased">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
-    <script>
-      // 서비스 워커 등록
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
-          }).catch(err => {
-            console.log('ServiceWorker registration failed: ', err);
-          });
-        });
-      }
-    </script>
   </body>
 </html>
