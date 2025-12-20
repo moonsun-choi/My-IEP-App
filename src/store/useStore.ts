@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { AppState, PromptLevel, WidgetType, Student, Goal, GoalStatus } from '../types';
 import { db } from '../services/db';
@@ -88,7 +87,14 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         setLoggedIn: (isLoggedIn) => {
             set({ isLoggedIn });
             if (isLoggedIn) {
-                get().checkCloudStatus();
+                // 로그인 직후 클라우드 상태 확인 후 자동 동기화 시도
+                get().checkCloudStatus().then(() => {
+                    const state = get();
+                    if (state.isOnline && state.syncStatus !== 'cloud_newer') {
+                        console.log("로그인 직후 자동 동기화 시작 (미디어 업로드 포함)");
+                        state.syncLocalToCloud();
+                    }
+                });
             }
         },
 
@@ -131,62 +137,168 @@ export const useStore = create<ExtendedAppState>((set, get) => {
         syncLocalToCloud: async () => {
             if (!get().isLoggedIn || !get().isOnline) return;
             
-            // Prevent multiple syncs overlap
+            // 중복 실행 방지
             if (get().syncStatus === 'syncing') return;
 
             set({ syncStatus: 'syncing' });
             try {
-                // --- Step 1: Check for Local Media and Upload Retroactively ---
+                // =========================================================
+                // [Step 1] 데이터 확보 (모바일 지연 대응 - 강력한 재시도 로직)
+                // =========================================================
+                let allGoals = await db.getAllGoals();
+                let allStudents = await db.getStudents();
+                let retryCount = 0;
+
+                // 데이터가 비어있다면 최대 5번(2.5초) 재시도
+                while ((allGoals.length === 0 || allStudents.length === 0) && retryCount < 5) {
+                    console.log(`[Sync] 데이터 로딩 대기 중... (${retryCount + 1}/5)`);
+                    await new Promise(resolve => setTimeout(resolve, 500)); // 0.5초 대기
+                    
+                    // 스토어 함수를 통해 강제 로드 시도
+                    if (allGoals.length === 0) {
+                        await get().fetchAllGoals(); // 스토어 업데이트
+                        allGoals = await db.getAllGoals(); // DB 재조회
+                    }
+                    if (allStudents.length === 0) {
+                        await get().fetchStudents();
+                        allStudents = await db.getStudents();
+                    }
+                    retryCount++;
+                }
+
+                console.log(`[Sync Ready] 목표: ${allGoals.length}개, 학생: ${allStudents.length}명 확보됨.`);
+
+                // =========================================================
+                // [Step 2] 로컬 미디어 업로드 (소급 적용)
+                // =========================================================
                 const allLogs = await db.getAllLogs();
-                // Identify logs with media that are NOT Drive links (Base64/Blob URI)
+                
+                // 업로드 대상 필터링 (Blob, File, Capacitor 경로 등)
                 const localMediaLogs = allLogs.filter(l => 
                     l.media_uri && 
                     !l.media_uri.includes('googleusercontent') && 
                     !l.media_uri.includes('drive.google.com') &&
-                    (l.media_uri.startsWith('data:') || l.media_uri.startsWith('blob:')) &&
+                    (l.media_uri.startsWith('data:') || l.media_uri.startsWith('blob:') || l.media_uri.startsWith('file:') || l.media_uri.startsWith('capacitor:') || l.media_uri.startsWith('content:')) &&
                     !get().uploadingLogIds.includes(l.id)
                 );
 
                 if (localMediaLogs.length > 0) {
-                    set({ loadingMessage: `미디어 ${localMediaLogs.length}개 업로드 중...` });
-                    toast.loading(`로컬 미디어 ${localMediaLogs.length}개를 드라이브로 업로드합니다...`, { id: 'media-upload' });
+                    set({ loadingMessage: `미디어 ${localMediaLogs.length}개 동기화 중...` });
+                    toast.loading(`미디어 ${localMediaLogs.length}개를 클라우드로 이동 중...`, { id: 'media-upload' });
+
+                    // UI 갱신을 위해 현재 보고 있는 화면의 로그 목록 확인
+                    const currentLogsInView = get().logs;
+                    let hasUpdated = false;
 
                     for (const log of localMediaLogs) {
                         try {
                             if (!log.media_uri) continue;
                             
-                            // Convert Base64/Blob URI to Blob/File
+                            // fetch는 # 뒤의 해시를 무시하므로 정상적으로 파일 로드 가능
                             const response = await fetch(log.media_uri);
                             const blob = await response.blob();
                             
-                            // Determine extension
-                            const ext = blob.type.split('/')[1] || 'bin';
-                            const fileName = `log_${log.id}.${ext}`;
-                            const file = new File([blob], fileName, { type: blob.type });
+                            // [수정] 파일명 및 확장자 결정 로직 개선
+                            let finalFileName = '';
+                            let mimeType = blob.type || 'image/jpeg';
 
-                            // Upload
-                            const newUri = await googleDriveService.uploadMedia(file);
+                            // 1. 저장된 URI에서 파일명(#filename=...) 추출 시도
+                            const uriParts = log.media_uri.split('#filename=');
+                            let storedName = '';
+                            if (uriParts.length > 1) {
+                                storedName = decodeURIComponent(uriParts[1]);
+                            }
+
+                            if (storedName) {
+                                // CASE A: 신규 로직 (파일명이 해시에 저장된 경우)
+                                // 이미 recordTrial에서 형식을 다 맞췄으므로 그대로 사용
+                                finalFileName = storedName;
+                                
+                                // 혹시 확장자가 누락되었다면 mimeType 기반으로 추가
+                                if (!finalFileName.includes('.')) {
+                                    const ext = mimeType.split('/')[1] || 'jpg';
+                                    finalFileName = `${finalFileName}.${ext}`;
+                                }
+                            } else {
+                                // CASE B: 기존 데이터 호환 (해시가 없는 경우 직접 조립)
+                                let ext = 'jpg';
+                                // 확장자 판단 로직 강화 (무조건 mp4가 되는 문제 방지)
+                                if (mimeType.includes('video')) {
+                                    ext = 'mp4';
+                                } else if (mimeType.includes('image')) {
+                                    // image/jpeg -> jpg, image/png -> png
+                                    ext = mimeType.split('/')[1];
+                                    if (ext === 'jpeg') ext = 'jpg';
+                                }
+                                
+                                // 원본명 추출 시도
+                                let originalName = 'file';
+                                try {
+                                    const urlParts = log.media_uri.split('/');
+                                    const lastPart = urlParts[urlParts.length - 1]; // blob ID
+                                    // blob ID에는 보통 확장자가 없으므로 그냥 둠
+                                } catch (e) {}
+
+                                // 이름 재조립
+                                let niceName = `log_${log.id}`;
+                                const goal = allGoals.find(g => String(g.id) === String(log.goal_id));
+                                if (goal) {
+                                    const student = allStudents.find(s => String(s.id) === String(goal.student_id));
+                                    if (student) {
+                                        const dateObj = new Date(log.timestamp);
+                                        const dateStr = dateObj.getFullYear() +
+                                            String(dateObj.getMonth() + 1).padStart(2, '0') +
+                                            String(dateObj.getDate()).padStart(2, '0');
+                                        
+                                        niceName = `${dateStr}_${student.name}_${originalName}`;
+                                    }
+                                }
+                                finalFileName = `${niceName}.${ext}`;
+                            }
+
+                            console.log(`[Sync] Uploading: ${finalFileName} (${mimeType})`);
+
+                            // 2. 파일 생성 및 업로드
+                            const file = new File([blob], finalFileName, { type: mimeType });
+                            const newUri = await googleDriveService.uploadMedia(file, finalFileName);
                             
                             if (newUri) {
-                                // Update DB with Cloud URI
                                 await db.updateLog(log.id, log.value, log.promptLevel, log.timestamp, newUri, log.notes, log.mediaType);
+                                
+                                set(state => ({
+                                    logs: state.logs.map(l => l.id === log.id ? { ...l, media_uri: newUri } : l)
+                                }));
+                                hasUpdated = true;
                             }
                         } catch (mediaErr) {
                             console.error(`Failed to upload media for log ${log.id}`, mediaErr);
-                            // Continue to next file even if one fails
                         }
                     }
+
+                    // [중요] 업로드 루프가 끝난 후, 확실하게 UI를 최신 상태(DB)와 동기화
+                    if (hasUpdated && currentLogsInView.length > 0) {
+                        const currentGoalId = currentLogsInView[0].goal_id;
+                        if (currentGoalId) {
+                            console.log("UI 강제 새로고침 실행");
+                            await get().fetchLogs(currentGoalId); 
+                        }
+                    }
+
                     toast.dismiss('media-upload');
+                    toast.success("미디어 동기화 완료");
                     set({ loadingMessage: null });
                 }
 
-                // --- Step 2: Proceed with Standard Data Backup ---
+                // =========================================================
+                // [Step 3] 텍스트 데이터 백업
+                // =========================================================
                 const data = await db.exportData();
                 await googleDriveService.uploadBackup(data);
                 const now = Date.now();
                 await db.setLastSyncTime(now);
                 set({ syncStatus: 'saved', lastSyncTime: now });
                 setTimeout(() => set({ syncStatus: 'idle' }), 2000);
+
             } catch (e) {
                 console.error("Auto sync failed", e);
                 set({ syncStatus: 'error', loadingMessage: null });
@@ -365,76 +477,69 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             let fileToUpload: File | null = null;
             let mediaType: string | undefined = undefined;
             
-            // 1. Optimistic Preparation: If File, create Blob URL for immediate display
             if (mediaUri instanceof File) {
-                tempUri = URL.createObjectURL(mediaUri);
-                fileToUpload = mediaUri;
-                mediaType = mediaUri.type;
+                const state = get();
+                const goal = state.goals.find(g => g.id === goalId);
+                const student = state.students.find(s => s.id === goal?.student_id);
+                const studentName = student?.name || '학생';
+                
+                const now = new Date();
+                const dateStr = now.getFullYear() +
+                    String(now.getMonth() + 1).padStart(2, '0') +
+                    String(now.getDate()).padStart(2, '0');
+
+                // 1. 포맷팅된 파일명 생성 (확장자 포함)
+                const formattedName = `${dateStr}_${studentName}_${mediaUri.name}`;
+
+                // 2. 파일 객체 생성
+                fileToUpload = new File([mediaUri], formattedName, { type: mediaUri.type });
+                
+                // 3. [핵심 수정] Blob URL 뒤에 '#filename=파일명'을 붙여서 저장
+                const blobUrl = URL.createObjectURL(fileToUpload);
+                tempUri = `${blobUrl}#filename=${encodeURIComponent(formattedName)}`;
+                
+                mediaType = fileToUpload.type;
             } else {
                 tempUri = mediaUri;
             }
 
             try {
-                // 2. Add to DB immediately (Optimistic Save)
-                // Note: We intentionally save the blob URI locally so it shows up in the UI right away.
-                // It will be replaced with the cloud URI once upload finishes.
+                // DB에는 파일명이 포함된 tempUri가 저장됨
                 const newLog = await db.addLog(goalId, value, promptLevel, tempUri, notes, mediaType);
                 
-                // 3. Update UI state immediately
                 await get().fetchLogs(goalId);
                 toast.success('기록이 저장되었습니다');
-                markDirty(); // Trigger sync for text data
+                markDirty(); 
 
-                // 4. Background Upload Logic
+                // 백그라운드 업로드
                 if (fileToUpload) {
                     const logId = newLog.id;
-                    
-                    // 1) 학생 이름 찾기
-                    const state = get();
-                    const goal = state.goals.find(g => g.id === goalId);
-                    const student = state.students.find(s => s.id === goal?.student_id);
-                    const studentName = student?.name || '학생';
-
-                    // 2) 날짜 문자열 만들기 (YYYYMMDD 형식)
-                    const now = new Date();
-                    const dateStr = now.getFullYear() +
-                        String(now.getMonth() + 1).padStart(2, '0') +
-                        String(now.getDate()).padStart(2, '0');
-
-                    // 3) 파일명 조합하기: "20240520_김철수_원본파일.jpg"
-                    const prettyFileName = `${dateStr}_${studentName}_${fileToUpload.name}`;
-
                     set(state => ({ uploadingLogIds: [...state.uploadingLogIds, logId] }));
                     
-                    // 4) uploadMedia 함수에 만든 파일명(prettyFileName)을 같이 전달
-                    // Don't await this! Let it run in background.
-                    googleDriveService.uploadMedia(fileToUpload, prettyFileName).then(async (finalUri) => {
-
+                    // [수정] 이미 위에서 파일명을 변경했으므로, fileToUpload.name을 그대로 사용
+                    googleDriveService.uploadMedia(fileToUpload, fileToUpload.name).then(async (finalUri) => {
                         if (finalUri) {
-                            // Update the log with the real Cloud URI
-                            // If finalUri is likely an image (thumbnail), we can update mediaType or leave it.
-                            // Google Drive returns thumbnail links, so usually it renders as image.
-                            // We update the URI. We keep the original mediaType or could update it to 'image/jpeg' if we want to force img tag.
-                            // But for now, let's keep original type so we know it was a video, but allow LogCard to handle it.
                             await db.updateLog(logId, value, promptLevel, newLog.timestamp, finalUri, notes, mediaType);
                             
-                            // Update local state to reflect the cloud URI (persistence fix)
                             const currentLogs = get().logs;
                             set({ 
                                 logs: currentLogs.map(l => l.id === logId ? { ...l, media_uri: finalUri } : l),
                                 uploadingLogIds: get().uploadingLogIds.filter(id => id !== logId)
                             });
                             markDirty();
-                            toast.success("미디어 동기화 완료");
+
+                            if (finalUri.startsWith('http')) {
+                                toast.success("미디어 동기화 완료");
+                            } else {
+                                toast("로컬에 저장됨 (로그인 시 동기화)", { icon: '💾' });
+                            }
                         } else {
-                             // Handle Upload Failure (Keep local blob but warn)
                              set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
-                             toast.error("미디어 업로드 실패");
+                             toast.error("미디어 업로드 실패 (나중에 다시 시도)");
                         }
                     }).catch(err => {
                          console.error("Background upload failed", err);
                          set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
-                         toast.error("미디어 업로드 중 오류 발생");
                     });
                 }
 
@@ -463,28 +568,40 @@ export const useStore = create<ExtendedAppState>((set, get) => {
             let fileToUpload: File | null = null;
             let mediaType: string | undefined = undefined;
 
-            // Check for media removal/replacement logic
             const oldLog = get().logs.find(l => l.id === logId);
             
-            // If there was media, and the new media is different (either undefined, or a new file/uri)
-            // Note: If mediaUri is a File, it's definitely new. If it's a string, it might be the same or different.
             if (oldLog?.media_uri && oldLog.media_uri.includes('google')) {
                 const isRemoved = !mediaUri;
                 const isReplaced = mediaUri instanceof File || (typeof mediaUri === 'string' && mediaUri !== oldLog.media_uri);
 
                 if (isRemoved || isReplaced) {
-                    // Delete old file from Drive
                     googleDriveService.deleteFile(oldLog.media_uri);
                 }
             }
 
+            // [수정] 파일명 포맷팅 및 해시 저장 로직
             if (mediaUri instanceof File) {
-                tempUri = URL.createObjectURL(mediaUri);
-                fileToUpload = mediaUri;
-                mediaType = mediaUri.type;
+                const state = get();
+                const goal = state.goals.find(g => g.id === goalId);
+                const student = state.students.find(s => s.id === goal?.student_id);
+                const studentName = student?.name || '학생';
+                
+                const dateObj = new Date(timestamp);
+                const dateStr = dateObj.getFullYear() +
+                    String(dateObj.getMonth() + 1).padStart(2, '0') +
+                    String(dateObj.getDate()).padStart(2, '0');
+
+                const formattedName = `${dateStr}_${studentName}_${mediaUri.name}`;
+                
+                fileToUpload = new File([mediaUri], formattedName, { type: mediaUri.type });
+                
+                // [핵심 수정] URL 뒤에 파일명 부착
+                const blobUrl = URL.createObjectURL(fileToUpload);
+                tempUri = `${blobUrl}#filename=${encodeURIComponent(formattedName)}`;
+                
+                mediaType = fileToUpload.type;
             } else {
                 tempUri = mediaUri;
-                // mediaType remains undefined, db will preserve old value
             }
 
             try {
@@ -494,28 +611,11 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                 toast.success('기록이 수정되었습니다');
                 markDirty();
 
-                // Background Upload
                 if (fileToUpload) {
-                    
-                    // 1. 학생 이름 찾기
-                    const state = get();
-                    const goal = state.goals.find(g => g.id === goalId);
-                    const student = state.students.find(s => s.id === goal?.student_id);
-                    const studentName = student?.name || '학생';
-
-                    // 2. 날짜 문자열 (수정된 날짜가 아닌 '기록된 날짜 timestamp' 기준이 더 정확할 수 있음)
-                    const dateObj = new Date(timestamp); 
-                    const dateStr = dateObj.getFullYear() +
-                        String(dateObj.getMonth() + 1).padStart(2, '0') +
-                        String(dateObj.getDate()).padStart(2, '0');
-
-                    // 3. 파일명 생성
-                    const prettyFileName = `${dateStr}_${studentName}_${fileToUpload.name}`;
-
                     set(state => ({ uploadingLogIds: [...state.uploadingLogIds, logId] }));
 
-                    // 4. prettyFileName 전달
-                    googleDriveService.uploadMedia(fileToUpload, prettyFileName).then(async (finalUri) => {
+                    // [수정] 이미 변경된 파일명 사용
+                    googleDriveService.uploadMedia(fileToUpload, fileToUpload.name).then(async (finalUri) => {
                         if (finalUri) {
                             await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes, mediaType);
                             const currentLogs = get().logs;
@@ -524,7 +624,12 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                                 uploadingLogIds: get().uploadingLogIds.filter(id => id !== logId)
                             });
                             markDirty();
-                            toast.success("미디어 동기화 완료");
+                            
+                            if (finalUri.startsWith('http')) {
+                                toast.success("미디어 동기화 완료");
+                            } else {
+                                toast("로컬에 저장됨 (로그인 시 동기화)", { icon: '💾' });
+                            }
                         } else {
                              set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
                              toast.error("미디어 업로드 실패");
