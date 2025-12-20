@@ -527,8 +527,7 @@ export const googleDriveService = {
     });
   },
 
-  // Upload Media File (Image/Video)
-  // 👇 [수정 1] customName 파라미터 추가
+  // Upload Media File (Image/Video) - Fast Upload Version
   uploadMedia: async (file: File, customName?: string): Promise<string | undefined> => {
     const token = window.gapi?.client?.getToken();
     const hasToken = googleDriveService.isConfigured() && !!token;
@@ -548,7 +547,6 @@ export const googleDriveService = {
         const folderId = await googleDriveService.ensureMediaFolder();
 
         const metadata = {
-            // 👇 [수정 2] customName이 있으면 그걸 쓰고, 없으면 원래 파일명 사용
             name: customName || file.name,
             mimeType: file.type,
             parents: [folderId]
@@ -573,32 +571,32 @@ export const googleDriveService = {
         const data = await res.json();
         const fileId = data.id;
 
-        // 2. 썸네일/링크 정보 가져오기 (API 호출 방식 개선)
-        // gapi 대신 fetch를 사용하여 인증 토큰 문제를 방지합니다.
+        // 2. 메타데이터 한 번만 확인 (기다리지 않음)
         try {
-            const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=webContentLink,thumbnailLink,webViewLink`, {
+            const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=id,mimeType,webContentLink,thumbnailLink,webViewLink`, {
                 method: 'GET',
                 headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
             });
             
             if (metaRes.ok) {
-                const metaData = await metaRes.json();
+                const meta = await metaRes.json();
                 
-                // [수정 3] 이미지인 경우 썸네일 링크 사용 (미리보기 해결 핵심 ⭐)
-                if (file.type.startsWith('image/') && metaData.thumbnailLink) {
-                     // 기본 작은 사이즈(=s220)를 큰 사이즈(=s1200)로 변경하여 선명하게 표시
-                     const link = metaData.thumbnailLink.replace(/=s\d+/, '=s1200');
-                     return `${link}#id=${fileId}`;
+                // [성공 케이스] 썸네일이 운 좋게 바로 있으면 사용 (영상/사진 공통)
+                if (meta.thumbnailLink) {
+                     return `${meta.thumbnailLink.replace(/=s\d+/, '=s1200')}#id=${fileId}`;
+                }
+                
+                // ⭐ [사진 안전장치] 썸네일이 없어도 사진은 'export=view' 링크로 강제 변환 (엑박 방지)
+                if (file.type.startsWith('image/')) {
+                    return `https://drive.google.com/uc?export=view&id=${fileId}#id=${fileId}`;
                 }
 
-                // 비디오거나 썸네일이 없으면 다운로드 링크 사용
-                return metaData.webContentLink || metaData.webViewLink || "";
+                // [영상] 썸네일 없으면 그냥 보기 링크 반환 (LogCard가 아이콘으로 처리함)
+                return meta.webViewLink || `https://drive.google.com/file/d/${fileId}/view`;
             }
-        } catch (e) {
-             console.warn("Failed to fetch metadata via API, falling back to View Link", e);
-        }
+        } catch (e) { console.warn("Meta fetch failed", e); }
 
-        // 최후의 수단
+        // 실패 시 기본 링크
         return `https://drive.google.com/file/d/${fileId}/view`;
 
     } catch (e) {
@@ -610,6 +608,29 @@ export const googleDriveService = {
             return undefined; 
         }
     }
+  },
+
+  // [추가됨] 나중에 썸네일이 생겼는지 확인하는 함수 (LogCard에서 사용)
+  getVideoThumbnail: async (fileId: string): Promise<string | null> => {
+    const token = window.gapi?.client?.getToken();
+    if (!token) return null;
+
+    try {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink`, {
+            method: 'GET',
+            headers: new Headers({ 'Authorization': 'Bearer ' + token.access_token })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data.thumbnailLink) {
+                return data.thumbnailLink.replace(/=s\d+/, '=s1200');
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to fetch video thumbnail", e);
+    }
+    return null;
   },
 
   // Delete Media File from Drive

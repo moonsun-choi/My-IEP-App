@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { googleDriveService } from '../services/googleDrive'; // 서비스 import 필수
 import { ObservationLog, PromptLevel } from '../types';
 import { Edit2, Paperclip, MessageSquare, Video, Cloud, Image as ImageIcon, PlayCircle, Maximize2 } from 'lucide-react';
 import { getGoalIcon } from '../utils/goalIcons';
@@ -15,6 +15,9 @@ interface LogCardProps {
 
 export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onClick, onMediaClick, isUploading }) => {
   const [imgError, setImgError] = useState(false);
+  // [추가] 뒤늦게 찾아낸 썸네일을 저장할 state
+  const [resolvedThumbnail, setResolvedThumbnail] = useState<string | null>(null);
+  
   const value = log.value;
   const GoalIconComponent = getGoalIcon(goalIcon);
   
@@ -31,10 +34,31 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
   // For badge display, we just check if the type is video
   const isVideoType = log.mediaType?.startsWith('video/') || isLegacyVideo || log.media_uri?.includes('video');
 
+  // [추가] 구글 드라이브 영상인지 확인하는 헬퍼 변수
+  const isDriveVideo = log.media_uri?.includes('drive.google.com') && isVideoType;
+
   // Reset error state if URI changes
   useEffect(() => {
     setImgError(false);
+    setResolvedThumbnail(null); // URI가 바뀌면 썸네일도 초기화
   }, [log.media_uri]);
+
+  // [추가] 구글 드라이브 영상이고, 아직 썸네일이 없을 때 -> 썸네일 확인 시도!
+  useEffect(() => {
+    if (isDriveVideo && log.media_uri) {
+        // URL에서 파일 ID 추출 (예: .../d/1234abc/view -> 1234abc)
+        const match = log.media_uri.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (match && match[1]) {
+            const fileId = match[1];
+            // 구글에 "썸네일 다 됐어?" 물어보기
+            googleDriveService.getVideoThumbnail(fileId).then(thumb => {
+                if (thumb) {
+                    setResolvedThumbnail(thumb); // "오 생겼다!" -> 이미지로 교체
+                }
+            });
+        }
+    }
+  }, [isDriveVideo, log.media_uri]);
 
   const getPromptLabel = (level: PromptLevel) => {
     const map: Record<string, string> = {
@@ -82,27 +106,27 @@ export const LogCard: React.FC<LogCardProps> = ({ log, goalTitle, goalIcon, onCl
         >
           {log.media_uri && (
             showVideoPlayer ? (
-                // Local Video Preview
+                // 1. 방금 찍은 영상 (로컬) -> 자동 재생
                 <video src={log.media_uri} className="absolute inset-0 w-full h-full object-cover opacity-30" muted playsInline loop autoPlay />
-            ) : isVideoType && !showVideoPlayer ? (
-                // Remote Video Placeholder (Drive Link) - Don't try to load as image
-                <div className="absolute inset-0 flex items-center justify-center opacity-30 bg-gray-200">
-                    <Video size={20} className="text-gray-500" />
+            ) : (isDriveVideo && !resolvedThumbnail) ? (
+                // 2. [영상 전용] 드라이브 영상인데 "아직 썸네일을 못 찾았으면" -> 아이콘 표시 (엑박 방지)
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-50 opacity-50">
+                    <Video size={24} className="text-slate-400" />
                 </div>
             ) : (
-                // Image or Fallback
+                // 3. 사진 OR "찾아낸 썸네일(resolvedThumbnail)" -> 이미지 표시
                 <>
                     <img 
-                      src={log.media_uri} 
+                      src={resolvedThumbnail || log.media_uri} 
                       alt="" 
                       className={`absolute inset-0 w-full h-full object-cover opacity-30 ${imgError ? 'hidden' : ''}`}
                       referrerPolicy="no-referrer"
                       onError={() => setImgError(true)}
                     />
-                    {/* Fallback Icon if image fails (e.g. broken link) */}
+                    {/* 혹시라도 이미지 로딩 실패하면 그때 아이콘 표시 */}
                     {imgError && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-30">
-                            <ImageIcon size={20} />
+                            {isVideoType ? <Video size={20} /> : <ImageIcon size={20} />}
                         </div>
                     )}
                 </>

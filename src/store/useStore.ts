@@ -424,12 +424,12 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                                 logs: currentLogs.map(l => l.id === logId ? { ...l, media_uri: finalUri } : l),
                                 uploadingLogIds: get().uploadingLogIds.filter(id => id !== logId)
                             });
-                            
-                            // toast.success("미디어 동기화 완료");
+                            markDirty();
+                            toast.success("미디어 동기화 완료");
                         } else {
                              // Handle Upload Failure (Keep local blob but warn)
                              set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
-                             toast.error("미디어 업로드 실패 (로컬에만 저장됨)");
+                             toast.error("미디어 업로드 실패");
                         }
                     }).catch(err => {
                          console.error("Background upload failed", err);
@@ -523,6 +523,8 @@ export const useStore = create<ExtendedAppState>((set, get) => {
                                 logs: currentLogs.map(l => l.id === logId ? { ...l, media_uri: finalUri } : l),
                                 uploadingLogIds: get().uploadingLogIds.filter(id => id !== logId)
                             });
+                            markDirty();
+                            toast.success("미디어 동기화 완료");
                         } else {
                              set(state => ({ uploadingLogIds: state.uploadingLogIds.filter(id => id !== logId) }));
                              toast.error("미디어 업로드 실패");
