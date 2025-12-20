@@ -528,6 +528,7 @@ export const googleDriveService = {
   },
 
   // Upload Media File (Image/Video)
+  // 👇 [수정 1] customName 파라미터 추가
   uploadMedia: async (file: File, customName?: string): Promise<string | undefined> => {
     const token = window.gapi?.client?.getToken();
     const hasToken = googleDriveService.isConfigured() && !!token;
@@ -547,6 +548,7 @@ export const googleDriveService = {
         const folderId = await googleDriveService.ensureMediaFolder();
 
         const metadata = {
+            // 👇 [수정 2] customName이 있으면 그걸 쓰고, 없으면 원래 파일명 사용
             name: customName || file.name,
             mimeType: file.type,
             parents: [folderId]
@@ -556,7 +558,8 @@ export const googleDriveService = {
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', file);
 
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webContentLink,webViewLink', {
+        // 1. 파일 업로드 요청
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
             method: 'POST',
             headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
             body: form
@@ -570,29 +573,33 @@ export const googleDriveService = {
         const data = await res.json();
         const fileId = data.id;
 
+        // 2. 썸네일/링크 정보 가져오기 (API 호출 방식 개선)
+        // gapi 대신 fetch를 사용하여 인증 토큰 문제를 방지합니다.
         try {
-            // Updated: Request 'thumbnailLink' explicitly and modify it to get a large image
-            const getFileRes = await window.gapi.client.drive.files.get({
-                fileId: fileId,
-                fields: 'webContentLink, thumbnailLink, webViewLink'
+            const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=webContentLink,thumbnailLink,webViewLink`, {
+                method: 'GET',
+                headers: new Headers({ 'Authorization': 'Bearer ' + accessToken })
             });
             
-            // FIX: Use thumbnailLink ONLY for images.
-            // For videos, the thumbnail link is just an image and won't play.
-            if (file.type.startsWith('image/') && getFileRes.result.thumbnailLink) {
-                 // Replace default size (=s220) with a larger size (=s1200) to act as a direct link
-                 const link = getFileRes.result.thumbnailLink.replace(/=s\d+/, '=s1200');
-                 // Append ID to fragment so deleteFile can find it later. Browser ignores fragment for image fetching.
-                 return `${link}#id=${fileId}`;
-            }
+            if (metaRes.ok) {
+                const metaData = await metaRes.json();
+                
+                // [수정 3] 이미지인 경우 썸네일 링크 사용 (미리보기 해결 핵심 ⭐)
+                if (file.type.startsWith('image/') && metaData.thumbnailLink) {
+                     // 기본 작은 사이즈(=s220)를 큰 사이즈(=s1200)로 변경하여 선명하게 표시
+                     const link = metaData.thumbnailLink.replace(/=s\d+/, '=s1200');
+                     return `${link}#id=${fileId}`;
+                }
 
-            // For videos, use webContentLink (direct file data) or webViewLink
-            // webContentLink is better for <video src> attempt, but CORS is tricky.
-            return getFileRes.result.webContentLink || getFileRes.result.webViewLink || "";
+                // 비디오거나 썸네일이 없으면 다운로드 링크 사용
+                return metaData.webContentLink || metaData.webViewLink || "";
+            }
         } catch (e) {
-             // Fallback to view link (User might need to click it)
-             return `https://drive.google.com/file/d/${fileId}/view`;
+             console.warn("Failed to fetch metadata via API, falling back to View Link", e);
         }
+
+        // 최후의 수단
+        return `https://drive.google.com/file/d/${fileId}/view`;
 
     } catch (e) {
         console.error("Upload error (Falling back to local):", e);

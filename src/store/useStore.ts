@@ -496,9 +496,26 @@ export const useStore = create<ExtendedAppState>((set, get) => {
 
                 // Background Upload
                 if (fileToUpload) {
+                    
+                    // 1. 학생 이름 찾기
+                    const state = get();
+                    const goal = state.goals.find(g => g.id === goalId);
+                    const student = state.students.find(s => s.id === goal?.student_id);
+                    const studentName = student?.name || '학생';
+
+                    // 2. 날짜 문자열 (수정된 날짜가 아닌 '기록된 날짜 timestamp' 기준이 더 정확할 수 있음)
+                    const dateObj = new Date(timestamp); 
+                    const dateStr = dateObj.getFullYear() +
+                        String(dateObj.getMonth() + 1).padStart(2, '0') +
+                        String(dateObj.getDate()).padStart(2, '0');
+
+                    // 3. 파일명 생성
+                    const prettyFileName = `${dateStr}_${studentName}_${fileToUpload.name}`;
+
                     set(state => ({ uploadingLogIds: [...state.uploadingLogIds, logId] }));
 
-                    googleDriveService.uploadMedia(fileToUpload).then(async (finalUri) => {
+                    // 4. prettyFileName 전달
+                    googleDriveService.uploadMedia(fileToUpload, prettyFileName).then(async (finalUri) => {
                         if (finalUri) {
                             await db.updateLog(logId, value, promptLevel, timestamp, finalUri, notes, mediaType);
                             const currentLogs = get().logs;
